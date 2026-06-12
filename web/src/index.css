@@ -1,0 +1,33 @@
+:root {
+  --blueprint: rgba(124, 58, 237, 0.05);
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: #ffffff;
+}
+body {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+/* subtle blueprint grid backdrop on the app canvas */
+.gwq-canvas {
+  background-color: #f5f5f7;
+  background-image:
+    linear-gradient(var(--blueprint) 1px, transparent 1px),
+    linear-gradient(90deg, var(--blueprint) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+.mono {
+  font-family: "DM Mono", "Fira Code", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+::selection {
+  background: #7c3aed;
+  color: #fff;
+}

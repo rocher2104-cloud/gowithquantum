@@ -1,0 +1,23 @@
+[project]
+name = "gowithquantum"
+version = "0.1.0"
+description = "Solve problems with quantum computers using natural language."
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "anthropic>=0.69",
+    "qiskit>=1.0",
+    "qiskit-aer>=0.14",
+    "rich>=13.7",
+    "python-dotenv>=1.0",
+]
+
+[project.scripts]
+gwq = "gowithquantum.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["gowithquantum"]

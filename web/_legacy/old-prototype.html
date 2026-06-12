@@ -1,0 +1,1479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Go With Quantum</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+/* ── design tokens ── */
+:root{
+  --color-bg-page:#F5F5F5; --color-bg-panel:#FFFFFF;
+  --color-bg-sidebar:#111111; --color-bg-selected:#F3F4F6; --color-bg-hover:#F9FAFB;
+  --color-text-primary:#111111; --color-text-secondary:#6B7280; --color-text-tertiary:#9CA3AF;
+  --color-border:#E5E7EB; --color-border-strong:#D1D5DB;
+  --color-cta:#000000; --color-cta-hover:#1A1A1A;
+  --color-accent-blue:#3B82F6; --color-accent-blue-bg:#EFF6FF;
+  --color-success:#22C55E; --color-success-bg:#F0FDF4;
+  --color-warning:#EAB308; --color-warning-bg:#FEFCE8;
+  --color-error:#EF4444; --color-error-bg:#FEF2F2;
+  --color-dataviz-start:#7C3AED; --color-dataviz-end:#A78BFA;
+  --color-sidebar-active:rgba(255,255,255,0.12);
+  --space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;
+  --space-5:24px;--space-6:32px;--space-7:48px;--space-8:64px;
+  --radius-sm:4px;--radius-md:8px;--radius-lg:12px;--radius-xl:16px;--radius-pill:999px;
+  --shadow-sm:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.05);
+  --shadow-md:0 4px 6px rgba(0,0,0,.07),0 2px 4px rgba(0,0,0,.05);
+  --shadow-lg:0 10px 24px rgba(0,0,0,.08),0 4px 8px rgba(0,0,0,.04);
+  --font-sans:'DM Sans',-apple-system,BlinkMacSystemFont,sans-serif;
+  --font-mono:'DM Mono','Fira Code',monospace;
+  --transition-fast:0.1s ease; --transition-base:0.18s ease;
+  --topbar-h:56px; --rail-w:64px; --panel-w:240px; --sidebar-w:304px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:var(--font-sans);font-size:15px;color:var(--color-text-primary);background:var(--color-bg-page);-webkit-font-smoothing:antialiased;line-height:1.6;}
+button{font-family:inherit;cursor:pointer}
+a{color:inherit;text-decoration:none}
+::selection{background:var(--color-accent-blue);color:#fff}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+
+/* ── topbar ── */
+.topbar{position:fixed;top:0;left:0;right:0;height:var(--topbar-h);z-index:50;display:flex;align-items:center;gap:8px;padding:0 16px;background:var(--color-bg-sidebar);border-bottom:1px solid rgba(255,255,255,.06);}
+.brand{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;color:#fff;letter-spacing:.03em;padding-right:8px;white-space:nowrap;}
+.brand-logo{display:grid;grid-template-columns:1fr 1fr;gap:3px;width:22px;height:22px;flex-shrink:0;}
+.brand-logo span{background:#fff;border-radius:2px;}
+.brand-logo span:nth-child(2),.brand-logo span:nth-child(3){opacity:.45;}
+.tb-sep{width:1px;height:22px;background:rgba(255,255,255,.12);margin:0 2px;flex-shrink:0;}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:4px;}
+.icon-btn{width:34px;height:34px;border-radius:var(--radius-md);border:0;background:transparent;color:rgba(255,255,255,.5);display:grid;place-items:center;transition:var(--transition-fast);}
+.icon-btn:hover{background:rgba(255,255,255,.08);color:#fff;}
+.icon-btn svg{width:17px;height:17px;}
+.hamburger{display:none;width:34px;height:34px;border-radius:var(--radius-md);border:0;background:transparent;color:rgba(255,255,255,.5);place-items:center;transition:var(--transition-fast);flex-shrink:0;}
+.hamburger:hover{background:rgba(255,255,255,.08);color:#fff;}
+.hamburger svg{width:18px;height:18px;}
+.ws-btn{display:flex;align-items:center;gap:8px;padding:5px 8px 5px 6px;border-radius:var(--radius-md);border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#fff;font-weight:500;font-size:13px;transition:var(--transition-fast);}
+.ws-btn:hover{border-color:rgba(255,255,255,.2);background:rgba(255,255,255,.1);}
+.ws-ic{width:22px;height:22px;border-radius:var(--radius-sm);background:var(--color-accent-blue);color:#fff;display:grid;place-items:center;font-size:11px;font-weight:700;flex-shrink:0;}
+.ws-chev{width:14px;height:14px;color:rgba(255,255,255,.4);}
+.avatar{width:32px;height:32px;border-radius:var(--radius-md);border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.1);display:grid;place-items:center;font-size:12px;font-weight:700;color:#fff;}
+
+/* ── dropdown ── */
+.dd{position:relative;}
+.dd-menu{position:absolute;top:calc(100% + 6px);min-width:200px;background:var(--color-bg-panel);border:1px solid var(--color-border);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);padding:var(--space-2);opacity:0;visibility:hidden;transform:translateY(-4px);transform-origin:top;transition:var(--transition-fast);z-index:80;}
+.dd-menu.right{right:0;}.dd-menu.left{left:0;}
+.dd.open .dd-menu{opacity:1;visibility:visible;transform:none;}
+.dd-label{font-size:var(--text-xs, 11px);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--color-text-tertiary);padding:8px 12px 4px;}
+.dd-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--radius-md);color:var(--color-text-primary);font-size:13px;font-weight:500;transition:var(--transition-fast);width:100%;border:0;background:transparent;text-align:left;}
+.dd-item svg{width:15px;height:15px;flex-shrink:0;color:var(--color-text-secondary);}
+.dd-item:hover{background:var(--color-bg-selected);}
+.dd-item .right{margin-left:auto;font-size:11px;color:var(--color-text-tertiary);}
+.dd-item .ws-ic{width:22px;height:22px;border-radius:var(--radius-sm);background:var(--color-bg-selected);color:var(--color-text-secondary);}
+.dd-item.cur .ws-ic{background:var(--color-accent-blue);color:#fff;}
+.dd-div{height:1px;background:var(--color-border);margin:4px 8px;}
+
+/* ── layout shell ── */
+.layout{display:flex;padding-top:var(--topbar-h);min-height:100vh;}
+
+/* ── sidebar ── */
+.sidebar{position:fixed;top:var(--topbar-h);left:0;bottom:0;width:var(--sidebar-w);z-index:40;display:flex;transition:transform .25s ease;}
+.sidebar-overlay{display:none;position:fixed;inset:0;z-index:39;background:rgba(0,0,0,.3);backdrop-filter:blur(2px);}
+.sidebar-overlay.show{display:block;}
+/* Icon rail */
+.sidebar-rail{width:var(--rail-w);background:var(--color-bg-sidebar);display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:4px;flex-shrink:0;}
+.sidebar-rail-logo{display:grid;grid-template-columns:1fr 1fr;gap:3px;width:26px;height:26px;margin-bottom:16px;}
+.sidebar-rail-logo span{background:#fff;border-radius:2px;}
+.sidebar-rail-logo span:nth-child(2),.sidebar-rail-logo span:nth-child(3){opacity:.4;}
+.sidebar-btn{width:40px;height:40px;border-radius:var(--radius-md);border:0;background:transparent;color:rgba(255,255,255,.4);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:var(--transition-fast);}
+.sidebar-btn:hover{color:#fff;background:rgba(255,255,255,.07);}
+.sidebar-btn.active{color:#fff;background:var(--color-sidebar-active);}
+.sidebar-btn svg{width:18px;height:18px;stroke-width:1.7;}
+.sidebar-rail-spacer{flex:1;}
+/* Sidebar panel */
+.sidebar-panel{width:var(--panel-w);background:var(--color-bg-panel);border-right:1px solid var(--color-border);display:flex;flex-direction:column;overflow-y:auto;padding:12px 0;}
+.sidebar-panel::-webkit-scrollbar{width:4px;}
+.sidebar-panel::-webkit-scrollbar-thumb{background:var(--color-border);border-radius:2px;}
+.panel-rail-section{display:none;flex-direction:column;padding:0 8px;flex:1;}
+.panel-rail-section.active{display:flex;}
+.panel-section-label{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--color-text-tertiary);padding:8px 8px 6px;margin-bottom:2px;}
+.panel-divider{height:1px;background:var(--color-border);margin:8px 0;}
+/* Nav items */
+.nav-item{position:relative;display:flex;align-items:center;gap:8px;width:100%;padding:7px 8px;border-radius:var(--radius-md);border:0;background:transparent;color:var(--color-text-secondary);font-size:13px;font-weight:500;text-align:left;transition:var(--transition-fast);white-space:nowrap;overflow:hidden;}
+.nav-item svg{width:16px;height:16px;flex-shrink:0;stroke-width:1.7;}
+.nav-item .nb{margin-left:auto;min-width:18px;height:18px;padding:0 5px;border-radius:var(--radius-pill);background:var(--color-accent-blue);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;}
+.nav-item:hover{background:var(--color-bg-hover);color:var(--color-text-primary);}
+.nav-item.active{background:var(--color-bg-selected);color:var(--color-text-primary);font-weight:600;}
+
+/* ── content ── */
+.content{flex:1;margin-left:var(--sidebar-w);min-height:calc(100vh - var(--topbar-h));}
+.view-inner{max-width:900px;margin:0 auto;padding:32px 24px 80px;}
+.view{display:none;animation:fade .25s ease both;}
+.view.show{display:block;}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ── page header ── */
+.page-head{margin-bottom:28px;}
+.ph-kicker{font-size:11px;font-weight:600;color:var(--color-text-tertiary);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.ph-title{font-size:28px;font-weight:700;letter-spacing:-.02em;margin:0 0 8px;line-height:1.2;}
+.ph-sub{color:var(--color-text-secondary);font-size:15px;max-width:580px;line-height:1.6;margin:0;}
+.section-row{display:flex;align-items:center;justify-content:space-between;margin:32px 0 12px;}
+.section-row h2{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--color-text-tertiary);margin:0;}
+.ws-tags{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap;align-items:center;}
+.tags{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.tag{display:inline-flex;align-items:center;gap:5px;padding:3px 8px 3px 9px;border-radius:var(--radius-sm);border:1px solid var(--color-border-strong);background:var(--color-bg-panel);font-size:12px;color:var(--color-text-primary);font-weight:500;}
+.tag.ro{padding:3px 9px;}
+.tag .x{width:14px;height:14px;border-radius:3px;display:grid;place-items:center;color:var(--color-text-tertiary);transition:var(--transition-fast);}
+.tag .x:hover{background:var(--color-bg-hover);color:var(--color-text-secondary);}
+.tag-add{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:var(--radius-sm);border:1px dashed var(--color-border-strong);background:transparent;color:var(--color-text-tertiary);font-size:12px;font-weight:500;transition:var(--transition-fast);}
+.tag-add:hover{color:var(--color-text-secondary);border-color:var(--color-text-tertiary);}
+.tag-input{border:1px solid var(--color-border);background:var(--color-bg-panel);border-radius:var(--radius-sm);padding:3px 9px;font-family:inherit;font-size:12px;color:var(--color-text-primary);outline:0;width:110px;}
+
+/* ── domain quick-select ── */
+.domain-select{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;}
+.dp{padding:6px 14px;border-radius:var(--radius-pill);border:1px solid var(--color-border);background:var(--color-bg-panel);color:var(--color-text-secondary);font-size:13px;font-weight:500;transition:var(--transition-fast);}
+.dp:hover{border-color:var(--color-border-strong);color:var(--color-text-primary);background:var(--color-bg-hover);}
+.dp.active{background:var(--color-bg-selected);border-color:var(--color-border-strong);color:var(--color-text-primary);font-weight:600;}
+
+/* ── composer ── */
+.composer{border:1px solid var(--color-border);border-radius:var(--radius-xl);background:var(--color-bg-panel);box-shadow:var(--shadow-sm);overflow:hidden;transition:border-color var(--transition-base),box-shadow var(--transition-base);}
+.composer:focus-within{border-color:var(--color-accent-blue);box-shadow:0 0 0 3px rgba(59,130,246,.1),var(--shadow-sm);}
+.composer .ctx{display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid var(--color-border);font-size:12px;font-weight:500;color:var(--color-text-tertiary);}
+.composer .ctx svg{width:13px;height:13px;}
+.composer .ctx b{color:var(--color-text-secondary);font-weight:600;}
+.composer textarea{width:100%;border:0;outline:0;resize:none;background:transparent;color:var(--color-text-primary);font-family:inherit;font-size:17px;line-height:1.55;padding:16px 16px 6px;min-height:86px;max-height:240px;}
+.composer textarea::placeholder{color:var(--color-text-tertiary);}
+.composer .c-tools{display:flex;align-items:center;gap:8px;padding:10px 12px 12px;}
+.tool-btn{display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:var(--radius-md);border:1px solid var(--color-border);background:transparent;color:var(--color-text-secondary);font-size:13px;font-weight:500;transition:var(--transition-fast);}
+.tool-btn:hover{border-color:var(--color-border-strong);color:var(--color-text-primary);background:var(--color-bg-hover);}
+.tool-btn svg{width:14px;height:14px;}
+.c-spacer{flex:1;}
+.send{width:40px;height:40px;border-radius:var(--radius-md);border:0;background:var(--color-cta);color:#fff;display:grid;place-items:center;transition:var(--transition-base);flex-shrink:0;box-shadow:0 1px 2px rgba(0,0,0,.1);}
+.send:hover{background:var(--color-cta-hover);transform:translateY(-1px);}
+.send:active{transform:none;}
+.send svg{width:18px;height:18px;}
+.send:disabled{opacity:.35;cursor:default;transform:none!important;}
+
+/* fit check */
+.fit-check{display:flex;align-items:flex-start;gap:12px;margin-top:10px;padding:12px 16px;border:1px solid var(--color-border);border-left:3px solid var(--color-accent-blue);border-radius:var(--radius-lg);background:var(--color-accent-blue-bg);animation:fade .3s ease;}
+.fc-icon{font-size:16px;flex-shrink:0;margin-top:1px;}
+.fc-text{font-size:13px;color:var(--color-text-secondary);line-height:1.5;flex:1;}
+.fc-text strong{color:var(--color-text-primary);}
+
+/* ── examples ── */
+.examples{margin-top:16px;}
+.ex-label{font-size:13px;color:var(--color-text-tertiary);margin:0 0 10px;}
+.ex-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px;}
+.ex{border:1px solid var(--color-border);border-radius:var(--radius-lg);background:var(--color-bg-panel);padding:14px;cursor:pointer;transition:var(--transition-fast);text-align:left;box-shadow:var(--shadow-sm);}
+.ex:hover{border-color:var(--color-border-strong);background:var(--color-bg-hover);transform:translateY(-1px);box-shadow:var(--shadow-md);}
+.ex .ex-cat{font-size:11px;color:var(--color-text-tertiary);font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}
+.ex .ex-t{font-size:13px;font-weight:600;line-height:1.4;color:var(--color-text-primary);}
+
+/* ── job cards ── */
+.jobs{display:flex;flex-direction:column;gap:8px;}
+.job{display:flex;align-items:center;gap:14px;border:1px solid var(--color-border);border-radius:var(--radius-lg);background:var(--color-bg-panel);padding:12px 16px;cursor:pointer;transition:var(--transition-fast);text-align:left;position:relative;overflow:hidden;width:100%;box-shadow:var(--shadow-sm);}
+.job::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--color-border);}
+.job.st-running::before{background:var(--color-dataviz-start);animation:lpulse 2.4s ease-in-out infinite;}
+.job.st-needs::before{background:var(--color-warning);animation:lpulse 2.4s ease-in-out infinite;}
+.job.st-done::before{background:var(--color-success);}
+.job.st-failed::before{background:var(--color-error);}
+@keyframes lpulse{0%,100%{opacity:.5}50%{opacity:1}}
+.job:hover{border-color:var(--color-border-strong);transform:translateY(-1px);box-shadow:var(--shadow-md);}
+.job .job-mid{flex:1;min-width:0;padding-left:2px;}
+.job .job-t{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--color-text-primary);}
+.job .job-meta{display:flex;align-items:center;gap:8px;margin-top:3px;font-size:12px;color:var(--color-text-tertiary);}
+.dotsep{width:3px;height:3px;border-radius:50%;background:var(--color-border-strong);}
+.job .job-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.progress-mini{display:flex;align-items:center;gap:7px;}
+.pm-bar{width:64px;height:4px;border-radius:4px;background:var(--color-bg-selected);overflow:hidden;}
+.pm-bar>i{display:block;height:100%;background:linear-gradient(to right,var(--color-dataviz-start),var(--color-dataviz-end));opacity:.8;transition:width .6s ease;}
+.pm-txt{font-family:var(--font-mono);font-size:11px;color:var(--color-text-tertiary);}
+.ws-pill{display:inline-flex;align-items:center;gap:5px;}
+.ws-pill-ic{width:14px;height:14px;border-radius:3px;background:var(--color-accent-blue);color:#fff;display:grid;place-items:center;font-size:8px;font-weight:700;}
+
+/* ── status pills ── */
+.pill{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 9px;border-radius:var(--radius-pill);font-size:11px;font-weight:600;background:var(--color-bg-selected);color:var(--color-text-secondary);}
+.pill.running{background:var(--color-accent-blue-bg);color:var(--color-accent-blue);}
+.pill.needs{background:var(--color-warning-bg);color:#92400E;}
+.pill.done{background:var(--color-success-bg);color:var(--color-success);}
+.pill.failed{background:var(--color-error-bg);color:var(--color-error);}
+.pill .pdot{width:5px;height:5px;border-radius:50%;background:currentColor;}
+.pill.running .pdot,.pill.needs .pdot{animation:blink 1.3s ease-in-out infinite;}
+@keyframes blink{50%{opacity:.2}}
+
+/* ── status nodes ── */
+.node{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;position:relative;flex-shrink:0;}
+.node.done{background:var(--color-success);color:#fff;}
+.node.done svg{width:12px;height:12px;}
+.node.run{border:2px solid var(--color-border-strong);}
+.node.run::before{content:"";position:absolute;inset:-2px;border-radius:50%;border:2px solid transparent;border-top-color:var(--color-accent-blue);animation:spin .8s linear infinite;}
+.node.pending{border:2px solid var(--color-border);}
+.node.pending::after{content:"";width:5px;height:5px;border-radius:50%;background:var(--color-border-strong);}
+.node.needs{background:var(--color-warning);color:#fff;}
+.node.needs::before{content:"";position:absolute;inset:-4px;border-radius:50%;border:1.5px solid var(--color-warning);animation:ping 1.6s ease-out infinite;}
+.node.needs svg{width:12px;height:12px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes ping{0%{transform:scale(.85);opacity:.6}100%{transform:scale(1.4);opacity:0}}
+
+/* ── run detail ── */
+.back-btn{display:inline-flex;align-items:center;gap:6px;color:var(--color-text-secondary);font-size:13px;font-weight:500;background:transparent;border:0;padding:6px 0;margin-bottom:16px;transition:var(--transition-fast);}
+.back-btn:hover{color:var(--color-text-primary);}
+.back-btn svg{width:15px;height:15px;}
+.run-title{font-size:22px;font-weight:700;letter-spacing:-.02em;margin:0 0 8px;line-height:1.25;}
+.run-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.run-progress{margin:20px 0 4px;display:flex;align-items:center;gap:12px;}
+.rp-bar{flex:1;height:5px;border-radius:5px;background:var(--color-bg-selected);overflow:hidden;}
+.rp-bar>i{display:block;height:100%;background:linear-gradient(to right,var(--color-dataviz-start),var(--color-dataviz-end));transition:width .7s cubic-bezier(.3,.8,.3,1);}
+.rp-txt{font-family:var(--font-mono);font-size:12px;color:var(--color-text-secondary);white-space:nowrap;}
+
+/* phase indicator */
+.phase-bar{display:flex;align-items:center;margin:16px 0 4px;padding:14px 16px;border:1px solid var(--color-border);border-radius:var(--radius-lg);background:var(--color-bg-panel);box-shadow:var(--shadow-sm);}
+.ph-step{display:flex;flex-direction:column;align-items:center;gap:5px;flex:0 0 auto;font-size:11px;font-weight:600;color:var(--color-text-tertiary);letter-spacing:.02em;text-align:center;}
+.ph-step.done{color:var(--color-success);}
+.ph-step.active{color:var(--color-text-primary);}
+.ph-dot{width:8px;height:8px;border-radius:50%;background:var(--color-border-strong);}
+.ph-step.done .ph-dot{background:var(--color-success);}
+.ph-step.active .ph-dot{background:var(--color-accent-blue);box-shadow:0 0 0 3px var(--color-accent-blue-bg);}
+.ph-line{flex:1;height:1px;background:var(--color-border);margin-bottom:14px;}
+.ph-line.done{background:var(--color-success);opacity:.5;}
+
+/* HITL banner */
+.hitl-banner{display:flex;align-items:center;gap:12px;border:1px solid #FDE68A;border-left:3px solid var(--color-warning);border-radius:var(--radius-lg);background:var(--color-warning-bg);padding:12px 14px;margin:16px 0;}
+.hb-ic{width:30px;height:30px;border-radius:var(--radius-md);background:var(--color-warning);color:#fff;display:grid;place-items:center;flex-shrink:0;}
+.hb-ic svg{width:15px;height:15px;}
+.hitl-banner b{font-weight:600;color:var(--color-text-primary);}
+.hitl-banner span{color:var(--color-text-secondary);font-size:13px;}
+
+/* plan timeline */
+.plan{margin-top:20px;border:1px solid var(--color-border);border-radius:var(--radius-lg);background:var(--color-bg-panel);overflow:hidden;box-shadow:var(--shadow-sm);}
+.plan-top{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--color-border);}
+.plan-top .pt-l{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--color-text-tertiary);}
+.plan-list{padding:4px 0;}
+.step{display:grid;grid-template-columns:22px 1fr;gap:13px;padding:0 16px;}
+.step .rail{display:flex;flex-direction:column;align-items:center;}
+.step .line{width:2px;flex:1;background:var(--color-border);margin:4px 0;min-height:12px;}
+.step:last-child .line{display:none;}
+.step.done .line{background:var(--color-success);opacity:.4;}
+.step .smain{padding:9px 0 13px;min-width:0;}
+.step-head{display:flex;align-items:center;gap:9px;cursor:pointer;}
+.step-title{font-size:14px;font-weight:600;color:var(--color-text-primary);}
+.step.pending .step-title{color:var(--color-text-tertiary);}
+.owner{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--color-text-secondary);border:1px solid var(--color-border);border-radius:var(--radius-sm);padding:2px 6px;}
+.owner.human{color:#92400E;border-color:#FDE68A;background:var(--color-warning-bg);}
+.owner svg{width:11px;height:11px;}
+.step-stat{margin-left:auto;font-size:12px;color:var(--color-text-tertiary);}
+.step.running .step-stat{color:var(--color-accent-blue);}
+.step.needs .step-stat{color:var(--color-warning);}
+.chev{width:15px;height:15px;color:var(--color-text-tertiary);transition:var(--transition-base);flex-shrink:0;}
+.step.open .chev{transform:rotate(180deg);}
+.step-detail{display:none;padding-top:8px;}
+.step.open .step-detail{display:block;animation:fade .2s ease both;}
+.notes{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;}
+.notes li{position:relative;padding-left:15px;font-size:13px;color:var(--color-text-secondary);line-height:1.5;}
+.notes li::before{content:"";position:absolute;left:2px;top:8px;width:4px;height:4px;border-radius:50%;background:var(--color-border-strong);}
+.typed .cursor{display:inline-block;width:6px;height:13px;background:var(--color-text-primary);vertical-align:-2px;margin-left:1px;animation:cblink 1s steps(1) infinite;}
+@keyframes cblink{50%{opacity:0}}
+
+/* gate panel */
+.gate{margin-top:12px;border:1px solid #FDE68A;border-left:3px solid var(--color-warning);border-radius:var(--radius-md);background:var(--color-warning-bg);padding:14px;}
+.gate .g-q{font-size:14px;font-weight:600;margin-bottom:4px;color:var(--color-text-primary);}
+.gate .g-d{font-size:13px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.55;}
+.gate-actions{display:flex;gap:8px;flex-wrap:wrap;}
+
+/* ── result card ── */
+.result{margin-top:20px;border:1px solid var(--color-border-strong);border-radius:var(--radius-lg);background:var(--color-bg-panel);padding:20px;box-shadow:var(--shadow-sm);}
+.verdict-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:var(--radius-sm);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:14px;}
+.vb-hybrid{background:var(--color-accent-blue-bg);color:var(--color-accent-blue);border:1px solid #BFDBFE;}
+.vb-advantage{background:var(--color-success-bg);color:var(--color-success);border:1px solid #86EFAC;}
+.vb-neutral{background:var(--color-bg-selected);color:var(--color-text-secondary);border:1px solid var(--color-border);}
+.result h3{font-size:18px;font-weight:700;letter-spacing:-.02em;margin:0 0 10px;line-height:1.3;}
+.result p{color:var(--color-text-secondary);font-size:14px;margin:0 0 14px;line-height:1.6;}
+.r-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--color-border);border:1px solid var(--color-border);border-radius:var(--radius-md);overflow:hidden;margin-bottom:16px;}
+.r-stat{background:var(--color-bg-panel);padding:12px 14px;}
+.r-stat .rk{font-size:11px;color:var(--color-text-tertiary);margin-bottom:4px;font-weight:500;}
+.r-stat .rv{font-family:var(--font-mono);font-size:19px;font-weight:600;color:var(--color-text-primary);}
+.r-actions{display:flex;gap:8px;flex-wrap:wrap;}
+
+/* ── buttons ── */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:var(--radius-md);border:1px solid var(--color-border-strong);background:var(--color-bg-selected);color:var(--color-text-primary);font-size:13px;font-weight:600;transition:var(--transition-fast);white-space:nowrap;}
+.btn:hover{border-color:var(--color-border-strong);background:var(--color-bg-hover);}
+.btn svg{width:14px;height:14px;}
+.btn-primary{background:var(--color-cta);color:#fff;border-color:transparent;}
+.btn-primary:hover{background:var(--color-cta-hover);}
+.btn-amber{background:var(--color-warning-bg);color:#92400E;border-color:#FDE68A;}
+.btn-amber:hover{background:#FDE68A;}
+.btn-ok{background:var(--color-success-bg);color:var(--color-success);border-color:#86EFAC;}
+.btn-ghost{background:transparent;border-color:transparent;color:var(--color-text-secondary);}
+.btn-ghost:hover{background:var(--color-bg-hover);color:var(--color-text-primary);}
+.btn-sm{padding:6px 11px;font-size:12px;}
+
+/* ── files ── */
+.dropzone{border:1.5px dashed var(--color-border-strong);border-radius:var(--radius-lg);padding:28px;text-align:center;color:var(--color-text-tertiary);transition:var(--transition-base);cursor:pointer;margin-bottom:16px;}
+.dropzone:hover{border-color:var(--color-accent-blue);color:var(--color-text-secondary);background:var(--color-bg-panel);}
+.dropzone svg{width:24px;height:24px;margin-bottom:9px;opacity:.5;}
+.dropzone b{display:block;color:var(--color-text-primary);font-weight:600;margin-bottom:2px;font-size:14px;}
+.flist{display:flex;flex-direction:column;gap:7px;}
+.frow{display:flex;align-items:center;gap:12px;border:1px solid var(--color-border);border-radius:var(--radius-lg);background:var(--color-bg-panel);padding:12px 14px;transition:var(--transition-fast);box-shadow:var(--shadow-sm);}
+.frow:hover{border-color:var(--color-border-strong);}
+.fic{width:34px;height:34px;border-radius:var(--radius-md);border:1px solid var(--color-border-strong);display:grid;place-items:center;color:var(--color-text-tertiary);flex-shrink:0;background:var(--color-bg-selected);}
+.fic svg{width:15px;height:15px;}
+.fmid{flex:1;min-width:0;}
+.fn{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--color-text-primary);}
+.fm{font-size:12px;color:var(--color-text-tertiary);margin-top:2px;}
+
+/* data mapper */
+.table-wrap{border:1px solid var(--color-border);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-sm);}
+.data-table{width:100%;border-collapse:collapse;}
+.data-table th,.data-table td{padding:10px 14px;font-size:13px;text-align:left;border-bottom:1px solid var(--color-border);}
+.data-table th{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--color-text-tertiary);background:var(--color-bg-selected);}
+.data-table tr:last-child td{border-bottom:0;}
+.data-table td.col-key{color:var(--color-text-primary);font-weight:500;font-family:var(--font-mono);font-size:12px;}
+.mapper-tag{display:inline-flex;align-items:center;padding:2px 8px;border-radius:var(--radius-sm);background:var(--color-accent-blue-bg);color:var(--color-accent-blue);font-size:12px;font-weight:600;border:1px solid #BFDBFE;}
+
+/* ── experiment table ── */
+.exp-table-wrap{border:1px solid var(--color-border);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-sm);}
+.exp-table{width:100%;border-collapse:collapse;}
+.exp-table th,.exp-table td{padding:10px 14px;font-size:13px;text-align:left;border-bottom:1px solid var(--color-border);}
+.exp-table th{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--color-text-tertiary);background:var(--color-bg-selected);}
+.exp-table tr:last-child td{border-bottom:0;}
+.exp-table tbody tr{cursor:pointer;transition:var(--transition-fast);}
+.exp-table tbody tr:hover td{background:var(--color-bg-hover);}
+.exp-table td.mono{font-family:var(--font-mono);font-size:12px;color:var(--color-text-primary);}
+.exp-table td.method{font-weight:500;color:var(--color-text-primary);}
+
+/* ── algorithm library ── */
+.alg-filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px;}
+.alg-filter{padding:5px 12px;border-radius:var(--radius-md);border:1px solid var(--color-border);background:var(--color-bg-panel);color:var(--color-text-secondary);font-size:13px;font-weight:500;transition:var(--transition-fast);}
+.alg-filter:hover{border-color:var(--color-border-strong);color:var(--color-text-primary);}
+.alg-filter.active{background:var(--color-accent-blue-bg);border-color:#BFDBFE;color:var(--color-accent-blue);}
+.alg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;}
+.alg-card{border:1px solid var(--color-border);border-radius:var(--radius-lg);background:var(--color-bg-panel);padding:16px;transition:var(--transition-base);text-align:left;box-shadow:var(--shadow-sm);}
+.alg-card:hover{border-color:var(--color-border-strong);background:var(--color-bg-hover);box-shadow:var(--shadow-md);}
+.alg-cat{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--color-text-tertiary);margin-bottom:6px;}
+.alg-name{font-size:16px;font-weight:700;letter-spacing:-.02em;color:var(--color-text-primary);margin-bottom:6px;}
+.alg-desc{font-size:13px;color:var(--color-text-secondary);line-height:1.5;margin-bottom:12px;}
+.alg-fits{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px;}
+.alg-fit-tag{padding:2px 8px;border-radius:var(--radius-sm);background:var(--color-bg-selected);border:1px solid var(--color-border);font-size:11px;color:var(--color-text-secondary);font-weight:500;}
+.alg-use{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;color:var(--color-accent-blue);}
+
+/* ── providers ── */
+.provider-list{display:flex;flex-direction:column;gap:10px;}
+.prow{display:flex;align-items:center;gap:14px;border:1px solid var(--color-border);border-radius:var(--radius-lg);background:var(--color-bg-panel);padding:14px 16px;transition:var(--transition-fast);box-shadow:var(--shadow-sm);}
+.prow:hover{border-color:var(--color-border-strong);}
+.prow.connected{border-color:#86EFAC;}
+.prov-ic{width:38px;height:38px;border-radius:var(--radius-md);border:1px solid var(--color-border-strong);background:var(--color-bg-selected);display:grid;place-items:center;font-size:13px;font-weight:700;color:var(--color-text-secondary);flex-shrink:0;}
+.prov-mid{flex:1;min-width:0;}
+.prov-name{font-size:14px;font-weight:700;color:var(--color-text-primary);}
+.prov-meta{font-size:12px;color:var(--color-text-tertiary);margin-top:3px;}
+.prov-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.status-dot{width:7px;height:7px;border-radius:50%;background:var(--color-border-strong);flex-shrink:0;}
+.status-dot.connected{background:var(--color-success);}
+.status-dot.available{background:var(--color-warning);}
+.queue-lbl{font-family:var(--font-mono);font-size:12px;color:var(--color-text-tertiary);}
+
+/* ── dashboard ── */
+.dash-welcome{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:28px;}
+.dash-greeting{font-size:28px;font-weight:700;letter-spacing:-.03em;margin:0 0 4px;color:var(--color-text-primary);}
+.dash-sub{color:var(--color-text-secondary);font-size:15px;margin:0;}
+.active-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:10px;margin-bottom:8px;}
+.ac{border:1px solid var(--color-border);border-radius:var(--radius-lg);background:var(--color-bg-panel);padding:16px;position:relative;overflow:hidden;box-shadow:var(--shadow-sm);}
+.ac::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--color-dataviz-start);}
+.ac.needs::before{background:var(--color-warning);}
+.ac-title{font-size:14px;font-weight:600;color:var(--color-text-primary);margin-bottom:5px;padding-left:2px;}
+.ac-meta{font-size:12px;color:var(--color-text-tertiary);padding-left:2px;}
+.ac-bar-wrap{margin-top:10px;}
+.ac-bar{height:4px;border-radius:4px;background:var(--color-bg-selected);overflow:hidden;margin-bottom:4px;}
+.ac-bar>i{display:block;height:100%;background:var(--color-dataviz-start);}
+.ac-stat{font-family:var(--font-mono);font-size:11px;color:var(--color-text-tertiary);}
+.insight-strip{margin-top:28px;padding:14px 16px;border:1px solid #BFDBFE;border-radius:var(--radius-lg);background:var(--color-accent-blue-bg);display:flex;align-items:center;gap:12px;}
+.ins-icon{font-size:18px;flex-shrink:0;}
+.insight-strip p{margin:0;font-size:14px;color:var(--color-text-secondary);}
+.insight-strip strong{color:var(--color-text-primary);}
+
+/* ── empty ── */
+.empty{text-align:center;padding:48px 20px;color:var(--color-text-tertiary);}
+.empty svg{width:28px;height:28px;opacity:.4;margin-bottom:10px;}
+.empty b{display:block;color:var(--color-text-secondary);font-weight:600;font-size:14px;margin-bottom:3px;}
+
+/* ── modal ── */
+.modal-bg{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.4);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:20px;}
+.modal-bg.show{display:flex;animation:fade .2s ease;}
+.modal{width:100%;max-width:440px;background:var(--color-bg-panel);border:1px solid var(--color-border);border-radius:var(--radius-xl);box-shadow:var(--shadow-lg);padding:24px;}
+.modal h3{margin:0 0 6px;font-size:18px;font-weight:700;letter-spacing:-.025em;color:var(--color-text-primary);}
+.modal p{margin:0 0 16px;color:var(--color-text-secondary);font-size:14px;}
+.modal input.txt{width:100%;border:1px solid var(--color-border-strong);background:var(--color-bg-selected);border-radius:var(--radius-md);padding:10px 13px;font-family:inherit;font-size:15px;color:var(--color-text-primary);outline:0;margin-bottom:16px;transition:var(--transition-fast);}
+.modal input.txt:focus{border-color:var(--color-accent-blue);box-shadow:0 0 0 3px rgba(59,130,246,.15);}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;}
+.modal.report{max-width:640px;max-height:84vh;overflow-y:auto;}
+.modal.report h2{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-tertiary);margin:20px 0 6px;font-weight:600;}
+.modal.report h2:first-of-type{margin-top:10px;}
+.modal.report .rp{color:var(--color-text-secondary);font-size:14px;line-height:1.65;margin:0 0 10px;}
+.md-pre{background:var(--color-bg-selected);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:12px 14px;overflow-x:auto;margin:10px 0;}
+.md-pre code{font-family:var(--font-mono);font-size:12px;color:var(--color-text-primary);line-height:1.6;}
+
+/* scrollbar */
+::-webkit-scrollbar{width:8px;height:8px;}
+::-webkit-scrollbar-thumb{background:var(--color-border-strong);border-radius:4px;border:2px solid transparent;background-clip:content-box;}
+::-webkit-scrollbar-thumb:hover{background:var(--color-text-tertiary);background-clip:content-box;}
+
+/* ── responsive ── */
+@media(max-width:900px){
+  .sidebar{transform:translateX(-100%);}
+  .sidebar.open{transform:none;}
+  .content{margin-left:0;}
+  .hamburger{display:grid;}
+  .view-inner{padding:24px 16px 60px;}
+  .active-grid{grid-template-columns:1fr;}
+  .alg-grid{grid-template-columns:1fr;}
+  .job .progress-mini{display:none;}
+}
+@media(max-width:600px){
+  .phase-bar{display:none;}
+  .dash-welcome{flex-direction:column;gap:12px;}
+  .r-stats{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<!-- topbar -->
+<header class="topbar">
+  <button class="hamburger" id="hamburger">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round"/></svg>
+  </button>
+  <div class="brand">
+    <div class="brand-logo"><span></span><span></span><span></span><span></span></div>
+    Go With Quantum
+  </div>
+  <div class="tb-sep"></div>
+  <div class="dd" id="wsDd">
+    <button class="ws-btn" id="wsBtn">
+      <span class="ws-ic" id="wsIc">L</span>
+      <span id="wsName">Logistics R&amp;D</span>
+      <svg class="ws-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" stroke-linecap="round"/></svg>
+    </button>
+    <div class="dd-menu left" id="wsMenu"></div>
+  </div>
+  <div class="tb-right">
+    <div class="dd" id="acctDd">
+      <button class="avatar" id="acctBtn">RB</button>
+      <div class="dd-menu right" id="acctMenu">
+        <div class="dd-label">Rocher Botha</div>
+        <button class="dd-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0" stroke-linecap="round"/></svg> Profile</button>
+        <button class="dd-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2" stroke-linecap="round"/></svg> Settings</button>
+        <div class="dd-div"></div>
+        <button class="dd-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3" stroke-linecap="round" stroke-linejoin="round"/></svg> Sign out</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- sidebar -->
+  <nav class="sidebar" id="sidebar">
+    <!-- 64px icon rail -->
+    <div class="sidebar-rail">
+      <div class="sidebar-rail-logo"><span></span><span></span><span></span><span></span></div>
+      <button class="sidebar-btn active" data-rail="workspace" title="Workspace">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>
+      </button>
+      <button class="sidebar-btn" data-rail="platform" title="Platform">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 3v10l-5 7h16l-5-7V3"/><path d="M9 3h6" stroke-linecap="round"/></svg>
+      </button>
+      <div class="sidebar-rail-spacer"></div>
+      <button class="sidebar-btn" data-rail="account" title="Account">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <!-- 240px panel -->
+    <div class="sidebar-panel">
+      <!-- Workspace section -->
+      <div class="panel-rail-section active" id="rail-workspace">
+        <div class="panel-section-label" id="sbWsLabel">Workspace</div>
+        <button class="nav-item active" data-view="home">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg>
+          <span>Dashboard</span>
+        </button>
+        <button class="nav-item" data-view="solve">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v18M3 12h18" stroke-linecap="round" opacity=".5"/><circle cx="12" cy="12" r="9"/></svg>
+          <span>New Task</span>
+        </button>
+        <button class="nav-item" data-view="queue">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h10" stroke-linecap="round"/></svg>
+          <span>Queue</span><span class="nb" id="queueBadge" style="display:none">0</span>
+        </button>
+        <button class="nav-item" data-view="files">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6a2 2 0 012-2h4l2 2h6a2 2 0 012 2v9a2 2 0 01-2 2H6a2 2 0 01-2-2z"/></svg>
+          <span>Files</span>
+        </button>
+        <button class="nav-item" data-view="experiments">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 3v10l-5 7h16l-5-7V3"/><path d="M9 3h6" stroke-linecap="round"/></svg>
+          <span>Experiments</span>
+        </button>
+        <button class="nav-item" data-view="outputs">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5" opacity=".5"/></svg>
+          <span>Outputs</span>
+        </button>
+      </div>
+      <!-- Platform section -->
+      <div class="panel-rail-section" id="rail-platform">
+        <div class="panel-section-label">Platform</div>
+        <button class="nav-item" data-view="library">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          <span>Algorithm Library</span>
+        </button>
+        <button class="nav-item" data-view="providers">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 3a9 9 0 100 18A9 9 0 0012 3z" opacity=".4"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4" stroke-linecap="round"/></svg>
+          <span>Providers</span>
+        </button>
+      </div>
+      <!-- Account section -->
+      <div class="panel-rail-section" id="rail-account">
+        <div class="panel-section-label">Account</div>
+        <button class="nav-item" data-view="billing">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20" stroke-linecap="round"/></svg>
+          <span>Billing</span>
+        </button>
+        <button class="nav-item" data-view="settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2" stroke-linecap="round"/></svg>
+          <span>Settings</span>
+        </button>
+      </div>
+    </div>
+  </nav>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <!-- content -->
+  <main class="content">
+    <div class="view-inner">
+
+      <!-- DASHBOARD -->
+      <section class="view show" id="view-home">
+        <div class="dash-welcome">
+          <div>
+            <div class="dash-greeting" id="dashGreeting">Good afternoon, Rocher.</div>
+            <div class="dash-sub">Here's what's happening across your workspaces.</div>
+          </div>
+          <button class="btn btn-primary" id="dashNewBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
+            New task
+          </button>
+        </div>
+        <div class="section-row"><h2>Active</h2></div>
+        <div class="active-grid" id="activeGrid"></div>
+        <div class="section-row"><h2>Recent</h2></div>
+        <div class="jobs" id="recentJobs"></div>
+        <div class="insight-strip">
+          <span class="ins-icon">⚡</span>
+          <p><strong>Insight:</strong> Your last 3 experiments tested hybrid, classical, and quantum-inspired approaches. Hybrid found the fastest feasible solution in 2 of 3 cases.</p>
+        </div>
+      </section>
+
+      <!-- SOLVE -->
+      <section class="view" id="view-solve">
+        <div class="page-head">
+          <div class="ph-kicker">Workspace · <span id="solveWsName">Logistics R&amp;D</span></div>
+          <h1 class="ph-title">What would you like to solve?</h1>
+          <p class="ph-sub">Describe your problem in plain words. We'll find an approach, run it on quantum hardware, and explain what we found — checking in with you along the way.</p>
+          <div class="ws-tags tags" id="wsTags"></div>
+        </div>
+        <div class="domain-select" id="domainSelect">
+          <button class="dp active" data-dom="all">All</button>
+          <button class="dp" data-dom="optimization">Optimization</button>
+          <button class="dp" data-dom="chemistry">Chemistry</button>
+          <button class="dp" data-dom="finance">Finance</button>
+          <button class="dp" data-dom="materials">Materials</button>
+          <button class="dp" data-dom="logistics">Logistics</button>
+        </div>
+        <div class="composer">
+          <div class="ctx">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6a2 2 0 012-2h4l2 2h6a2 2 0 012 2v9a2 2 0 01-2 2H6a2 2 0 01-2-2z"/></svg>
+            Using <b id="ctxFiles">3 files</b> from this workspace as context
+          </div>
+          <textarea id="prompt" rows="2" placeholder="e.g. Find the most efficient delivery routes for our 5 trucks across 40 stops…"></textarea>
+          <div class="c-tools">
+            <button class="tool-btn" id="attachBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11l-9 9a5 5 0 01-7-7l9-9a3.5 3.5 0 015 5l-9 9a2 2 0 01-3-3l8-8" stroke-linecap="round" stroke-linejoin="round"/></svg> Attach files</button>
+            <div class="dd" id="effortDd">
+              <button class="tool-btn" id="effortBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20v-5M4 11V4M12 20v-9M12 7V4M20 20v-3M20 13V4" stroke-linecap="round"/><circle cx="4" cy="13" r="2"/><circle cx="12" cy="9" r="2"/><circle cx="20" cy="15" r="2"/></svg> <span id="effortVal">Standard</span></button>
+              <div class="dd-menu left" id="effortMenu">
+                <div class="dd-label">How thorough?</div>
+                <button class="dd-item" data-effort="Quick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M13 2L4 14h7l-2 8 9-12h-7z" stroke-linejoin="round"/></svg> Quick <span class="right">~1 min</span></button>
+                <button class="dd-item" data-effort="Standard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2" stroke-linecap="round"/></svg> Standard <span class="right">~5 min</span></button>
+                <button class="dd-item" data-effort="Exhaustive"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3v18M3 12h18M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg> Exhaustive <span class="right">~20 min</span></button>
+              </div>
+            </div>
+            <div class="c-spacer"></div>
+            <button class="send" id="sendBtn" title="Solve" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="fit-check" id="fitCheck" style="display:none">
+          <span class="fc-icon">⚡</span>
+          <div class="fc-text"><strong>Quantum Fit Check:</strong> This looks like a combinatorial optimization problem. Hybrid solvers are likely useful. Classical and D-Wave hybrid will both be tested.</div>
+        </div>
+        <div class="examples">
+          <p class="ex-label">Not sure where to start? Try one of these:</p>
+          <div class="ex-grid" id="exGrid"></div>
+        </div>
+        <div class="section-row"><h2>Recent in this workspace</h2></div>
+        <div class="jobs" id="solveJobs"></div>
+      </section>
+
+      <!-- QUEUE -->
+      <section class="view" id="view-queue">
+        <div class="page-head">
+          <div class="ph-kicker">Process queue</div>
+          <h1 class="ph-title">Queue</h1>
+          <p class="ph-sub">Everything that's running, waiting, or waiting on you — across all your workspaces.</p>
+        </div>
+        <div id="queueNeeds"></div>
+        <div class="section-row"><h2>All processes</h2></div>
+        <div class="jobs" id="queueAll"></div>
+      </section>
+
+      <!-- FILES -->
+      <section class="view" id="view-files">
+        <div class="page-head">
+          <div class="ph-kicker">Workspace · <span class="solveWsName">Logistics R&amp;D</span></div>
+          <h1 class="ph-title">Files &amp; references</h1>
+          <p class="ph-sub">The source of truth for this workspace. Anything added here is available as context whenever you run a task.</p>
+          <div class="ws-tags tags" id="filesTags"></div>
+        </div>
+        <div class="dropzone" id="dropzone">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 16V4M7 9l5-5 5 5" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke-linecap="round"/></svg>
+          <b>Add a document or dataset</b>
+          Drop a file here, or click to browse
+        </div>
+        <div class="flist" id="flist"></div>
+        <div id="mapperSlot"></div>
+      </section>
+
+      <!-- EXPERIMENTS -->
+      <section class="view" id="view-experiments">
+        <div class="page-head">
+          <div class="ph-kicker">Workspace · <span class="solveWsName">Logistics R&amp;D</span></div>
+          <h1 class="ph-title">Experiment Lab</h1>
+          <p class="ph-sub">Every algorithm run, side by side. Compare approaches, track cost, and see where quantum made a difference.</p>
+        </div>
+        <div class="section-row"><h2>All runs</h2><button class="btn btn-sm btn-ghost">Export CSV</button></div>
+        <div class="exp-table-wrap">
+          <table class="exp-table" id="expTable">
+            <thead><tr><th>Run</th><th>Method</th><th>Status</th><th>Cost</th><th>Quality</th><th>Verdict</th></tr></thead>
+            <tbody id="expBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- OUTPUTS -->
+      <section class="view" id="view-outputs">
+        <div class="page-head">
+          <div class="ph-kicker">Workspace · <span class="solveWsName">Logistics R&amp;D</span></div>
+          <h1 class="ph-title">Outputs</h1>
+          <p class="ph-sub">A complete record of every result this workspace has produced. Nothing gets lost.</p>
+        </div>
+        <div class="jobs" id="outputsList"></div>
+      </section>
+
+      <!-- RUN DETAIL -->
+      <section class="view" id="view-run">
+        <button class="back-btn" id="runBack"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"/></svg> Back</button>
+        <div class="run-head">
+          <div style="flex:1;min-width:0">
+            <h1 class="run-title" id="runTitle">—</h1>
+            <div class="run-meta" id="runMeta"></div>
+          </div>
+        </div>
+        <div class="run-progress">
+          <div class="rp-bar"><i id="rpFill" style="width:0%"></i></div>
+          <span class="rp-txt" id="rpTxt">Step 0 of 9</span>
+        </div>
+        <div id="phaseBarSlot"></div>
+        <div id="hitlSlot"></div>
+        <div class="plan">
+          <div class="plan-top"><span class="pt-l">Process plan</span><span class="pt-l" style="text-transform:none;font-weight:500;color:var(--color-text-tertiary)" id="planOwnerNote">Human-in-the-loop</span></div>
+          <div class="plan-list" id="planList"></div>
+        </div>
+        <div id="resultSlot"></div>
+      </section>
+
+      <!-- ALGORITHM LIBRARY -->
+      <section class="view" id="view-library">
+        <div class="page-head">
+          <div class="ph-kicker">Platform</div>
+          <h1 class="ph-title">Algorithm Library</h1>
+          <p class="ph-sub">Proven quantum and hybrid workflows, ready to apply to your problem. Each one includes what it does, what it fits, and its current limitations.</p>
+        </div>
+        <div class="alg-filters" id="algFilters"></div>
+        <div class="alg-grid" id="algGrid"></div>
+      </section>
+
+      <!-- PROVIDERS -->
+      <section class="view" id="view-providers">
+        <div class="page-head">
+          <div class="ph-kicker">Platform</div>
+          <h1 class="ph-title">Provider Integrations</h1>
+          <p class="ph-sub">Connect to quantum cloud providers and hybrid solvers. Go With Quantum will route your experiments to the right backend automatically.</p>
+        </div>
+        <div class="section-row"><h2>Connected &amp; available</h2></div>
+        <div class="provider-list" id="providerList"></div>
+      </section>
+
+      <!-- BILLING stub -->
+      <section class="view" id="view-billing">
+        <div class="page-head">
+          <div class="ph-kicker">Account</div>
+          <h1 class="ph-title">Billing &amp; usage</h1>
+          <p class="ph-sub">Compute credits, spend by project, and budget controls.</p>
+        </div>
+        <div class="empty"><b>Coming soon</b>Billing and usage tracking will appear here.</div>
+      </section>
+
+      <!-- SETTINGS stub -->
+      <section class="view" id="view-settings">
+        <div class="page-head">
+          <div class="ph-kicker">Account</div>
+          <h1 class="ph-title">Settings</h1>
+          <p class="ph-sub">Profile, API keys, provider defaults, and notification preferences.</p>
+        </div>
+        <div class="empty"><b>Coming soon</b>Settings will appear here.</div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<!-- modals -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal" id="modalNew">
+    <h3>New workspace</h3>
+    <p>Workspaces keep your files, problems, and outputs together as one source of truth.</p>
+    <input class="txt" id="newWsName" placeholder="e.g. Materials Science"/>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-close>Cancel</button>
+      <button class="btn btn-primary" id="newWsCreate">Create workspace</button>
+    </div>
+  </div>
+</div>
+<div class="modal-bg" id="reportBg">
+  <div class="modal report" id="reportModal"></div>
+</div>
+
+<script>
+/* ── state ── */
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+const EXAMPLES=[
+  {cat:"Logistics",t:"Find the most efficient delivery routes for our 5 trucks across 40 stops",dom:"logistics"},
+  {cat:"Pharmaceuticals",t:"Screen molecules that could bind to the KRAS protein",dom:"chemistry"},
+  {cat:"Finance",t:"Stress-test our portfolio against a sudden market crash",dom:"finance"},
+  {cat:"Cybersecurity",t:"Check how hard our encryption is to break with a quantum search",dom:"all"},
+  {cat:"Materials",t:"Find a more stable structure for a battery cathode material",dom:"materials"},
+  {cat:"Energy",t:"Optimise the magnetic field layout for a fusion reactor",dom:"optimization"}
+];
+
+const STEPS=[
+  {t:"Understand your problem",owner:"You",human:true,hint:"Capturing your goal and turning it into something we can compute.",
+   notes:["Read your description and the workspace files.","Identified this as a routing / optimisation problem."]},
+  {t:"Find proven approaches",owner:"AI",hint:"Searching known algorithm families for a fit.",
+   notes:["Matched 3 candidate approaches: QAOA, quantum annealing, Grover-assisted search.","Ranked QAOA highest for this problem shape."]},
+  {t:"Draft candidate solutions",owner:"AI",hint:"Generating a few candidate quantum circuits to compare.",
+   notes:["Drafted 3 circuit variants at small scale.","Prepared them for a quick simulator test."]},
+  {t:"Quick test at small scale",owner:"Simulator",hint:"Trying tiny versions safely before using real hardware.",
+   notes:["Ran all 3 candidates on a simulator.","Candidate 2 returned the best routes — kept it."]},
+  {t:"Streamline the solution",owner:"Compiler",hint:"Making the circuit as efficient as possible to run.",
+   notes:["Reduced the circuit depth from 40 to 22 operations.","Mapped it onto a real hardware layout."]},
+  {t:"Run the real experiment",owner:"Hardware",hint:"Executing the experiment on an actual quantum computer.",gate:"hardware",
+   notes:["Submitted to the hardware queue.","Collected results across 1,024 runs."]},
+  {t:"Make sense of the results",owner:"AI",hint:"Reading the measurements and drawing conclusions.",
+   notes:["The most common result points to one clear route plan.","Cross-checked it against the simulator's answer."]},
+  {t:"Refine together",owner:"You + AI",human:true,hint:"Decide whether to improve further or accept the result.",gate:"improve",
+   notes:["A deeper circuit might squeeze out a little more.","Your call: keep refining, or accept what we have."]},
+  {t:"Check for a real advantage",owner:"Research",hint:"Proving whether quantum actually beats the classical approach here.",
+   notes:["Compared against the best classical solver.","Documented where (and if) quantum wins."]}
+];
+
+const WORKSPACES=[
+  {id:"log",name:"Logistics R&D",tags:["operations","routing"],
+   files:[{n:"fleet_stops_q3.csv",m:"Dataset · 412 KB · added 2 days ago",t:"csv"},
+          {n:"delivery_constraints.pdf",m:"Document · 88 KB · added 2 days ago",t:"pdf"},
+          {n:"current_routes_baseline.xlsx",m:"Spreadsheet · 240 KB · added yesterday",t:"xls"}]},
+  {id:"pharma",name:"Drug Discovery",tags:["chemistry","R&D"],
+   files:[{n:"kras_target.pdb",m:"Structure · 1.2 MB · added 5 days ago",t:"doc"},
+          {n:"candidate_library.csv",m:"Dataset · 3.1 MB · added 5 days ago",t:"csv"}]},
+  {id:"fin",name:"Risk & Markets",tags:["finance"],
+   files:[{n:"portfolio_positions.xlsx",m:"Spreadsheet · 510 KB · added 1 week ago",t:"xls"}]}
+];
+
+let JOBS=[
+  {id:1,title:"Optimise 5-truck delivery routes across 40 stops",ws:"log",step:5,status:"needs",created:"2 min ago"},
+  {id:2,title:"Screen molecules for the KRAS protein target",ws:"pharma",step:4,status:"running",created:"12 min ago"},
+  {id:3,title:"Stress-test the portfolio against a market crash",ws:"fin",step:0,status:"queued",created:"18 min ago"},
+  {id:4,title:"Search for a weak encryption key (demo)",ws:"log",step:9,status:"done",created:"1 hour ago"}
+];
+let jobSeq=100, currentWs="log", currentJob=null, runToken=0, prevView="home";
+
+const EXPERIMENTS=[
+  {run:"#001",method:"Classical MILP (OR-Tools)",status:"done",cost:"$0.20",quality:"94%",verdict:"Baseline"},
+  {run:"#002",method:"Quantum-inspired annealing",status:"done",cost:"$1.80",quality:"91%",verdict:"—"},
+  {run:"#003",method:"D-Wave hybrid solver",status:"running",cost:"~$7.50",quality:"—",verdict:"—"},
+  {run:"#004",method:"QAOA (simulator)",status:"failed",cost:"—",quality:"—",verdict:"Too many variables"}
+];
+
+const ALGORITHMS=[
+  {name:"QAOA",cat:"Optimization",desc:"Quantum Approximate Optimization Algorithm for combinatorial problems.",fits:["Routing","Scheduling","Portfolio"]},
+  {name:"VQE",cat:"Chemistry",desc:"Variational Quantum Eigensolver for molecular ground-state energy estimation.",fits:["Drug discovery","Materials"]},
+  {name:"Quantum Annealing",cat:"Optimization",desc:"Adiabatic approach using D-Wave systems — strong for discrete optimization.",fits:["Logistics","Manufacturing","Finance"]},
+  {name:"Grover's Search",cat:"Search",desc:"Quadratic speedup over classical unstructured search.",fits:["Database search","Cryptography analysis"]},
+  {name:"Quantum Monte Carlo",cat:"Finance",desc:"Quantum-enhanced Monte Carlo sampling for financial simulation.",fits:["Risk assessment","Option pricing"]},
+  {name:"Shor's Algorithm",cat:"Cryptography",desc:"Polynomial-time integer factoring — educational and post-quantum risk assessment.",fits:["Cryptography research"]},
+  {name:"Quantum Kernel SVM",cat:"Machine Learning",desc:"Quantum feature maps for classification tasks with potential kernel advantage.",fits:["Classification","Anomaly detection"]},
+  {name:"HHL Algorithm",cat:"Linear Algebra",desc:"Exponential speedup for sparse linear systems — requires error-corrected hardware.",fits:["Simulation","Optimization"]}
+];
+
+const PROVIDERS=[
+  {id:"braket",name:"AWS Braket",status:"connected",backends:"IonQ Aria (25q), Rigetti Aspen-M-3, Local simulator",queue:"Available now"},
+  {id:"dwave",name:"D-Wave Leap",status:"connected",backends:"Advantage (5000+ qubits), Hybrid solver",queue:"< 1 min"},
+  {id:"ibm",name:"IBM Quantum",status:"available",backends:"Eagle (127q), Falcon r5.11, QASM Simulator",queue:"13 min avg"},
+  {id:"azure",name:"Azure Quantum",status:"available",backends:"IonQ Harmony, Quantinuum H1",queue:"Available now"},
+  {id:"rigetti",name:"Rigetti QCS",status:"soon",backends:"Ankaa-2 (84q), QVM Simulator",queue:"—"},
+  {id:"ionq",name:"IonQ Cloud",status:"soon",backends:"Aria (25q), Forte (36q)",queue:"—"}
+];
+
+const RESULTS={
+  default:{
+    headline:"We found a route plan that cuts total distance by about 18%.",
+    body:"Across 1,024 runs on the quantum computer, one clear plan came out on top. It keeps all 40 stops, balances the load across your 5 trucks, and avoids the two bottlenecks in your current schedule.",
+    stats:[["Distance saved","~18%"],["Confidence","High"],["Quantum advantage","Not yet"]],
+    verdict:"At today's problem size a good classical planner matches this, so there's no quantum advantage *yet* — but the same approach scales to problems classical tools struggle with. We'd recommend revisiting as your network grows.",
+    verdictClass:"vb-neutral",verdictLabel:"No quantum advantage yet"
+  }
+};
+
+/* ── theme: removed (light mode only) ── */
+
+/* ── dropdowns ── */
+document.addEventListener("click",e=>{
+  $$(".dd").forEach(dd=>{if(!dd.contains(e.target)) dd.classList.remove("open");});
+});
+function bindDd(id){
+  const dd=$(id); if(!dd) return;
+  dd.querySelector("button").addEventListener("click",e=>{
+    e.stopPropagation();
+    const was=dd.classList.contains("open");
+    $$(".dd").forEach(d=>d.classList.remove("open"));
+    if(!was) dd.classList.add("open");
+  });
+}
+function bindDdEl(dd){
+  dd.querySelector("button").addEventListener("click",e=>{
+    e.stopPropagation();
+    const was=dd.classList.contains("open");
+    $$(".dd").forEach(d=>d.classList.remove("open"));
+    if(!was) dd.classList.add("open");
+  });
+}
+["#wsDd","#acctDd","#effortDd"].forEach(bindDd);
+
+/* ── helpers ── */
+const wsById=id=>WORKSPACES.find(w=>w.id===id);
+const wsIcon=name=>name.trim()[0].toUpperCase();
+
+function statusIcon(status){
+  if(status==="done") return '<span class="node done"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
+  if(status==="running") return '<span class="node run"></span>';
+  if(status==="needs") return '<span class="node needs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 8v5M12 16.5v.5" stroke-linecap="round"/></svg></span>';
+  return '<span class="node pending"></span>';
+}
+
+function statusPill(status){
+  if(status==="needs") return '<span class="pill needs"><span class="pdot"></span>Needs you</span>';
+  if(status==="running") return '<span class="pill running"><span class="pdot"></span>Running</span>';
+  if(status==="queued") return '<span class="pill"><span class="pdot"></span>Queued</span>';
+  if(status==="failed") return '<span class="pill failed">Failed</span>';
+  return '<span class="pill done">Done</span>';
+}
+
+function jobCard(job){
+  const ws=wsById(job.ws);
+  return `<button class="job st-${job.status}" data-job="${job.id}">
+    ${statusIcon(job.status)}
+    <div class="job-mid">
+      <div class="job-t">${job.title}</div>
+      <div class="job-meta">
+        <span class="ws-pill"><span class="ws-pill-ic">${wsIcon(ws.name)}</span>${ws.name}</span>
+        <span class="dotsep"></span><span>${job.created}</span>
+      </div>
+    </div>
+    <div class="job-right">
+      <div class="progress-mini"><div class="pm-bar"><i style="width:${job.step/9*100}%"></i></div><span class="pm-txt">${job.step}/9</span></div>
+      ${statusPill(job.status)}
+    </div>
+  </button>`;
+}
+function bindJobCards(scope){
+  $$(scope+" .job").forEach(c=>c.onclick=()=>openRun(+c.dataset.job));
+}
+
+/* ── tags ── */
+function renderTags(host,tags,editable=true){
+  host.innerHTML=tags.map((t,i)=>`<span class="tag">${t}${editable?`<span class="x" data-i="${i}"><svg viewBox="0 0 24 24" width="11" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg></span>`:""}</span>`).join("")
+    +(editable?`<button class="tag-add"><svg viewBox="0 0 24 24" width="12" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>Tag</button>`:"");
+  if(!editable) return;
+  host.querySelectorAll(".x").forEach(x=>x.onclick=()=>{tags.splice(+x.dataset.i,1);renderTags(host,tags,editable);});
+  const add=host.querySelector(".tag-add");
+  add.onclick=()=>{
+    const inp=document.createElement("input");inp.className="tag-input";inp.placeholder="add tag…";
+    add.replaceWith(inp);inp.focus();
+    const commit=()=>{const v=inp.value.trim();if(v&&!tags.includes(v)) tags.push(v);renderTags(host,tags,editable);};
+    inp.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();commit();}if(e.key==="Escape") renderTags(host,tags,editable);});
+    inp.addEventListener("blur",commit);
+  };
+}
+
+/* ── workspace switcher ── */
+function renderWsMenu(){
+  let html=`<div class="dd-label">Workspaces</div>`;
+  WORKSPACES.forEach(w=>{
+    const cur=w.id===currentWs;
+    html+=`<button class="dd-item${cur?" cur":""}" data-ws="${w.id}">
+      <span class="ws-ic">${wsIcon(w.name)}</span>${w.name}
+      ${cur?'<span class="right"><svg viewBox="0 0 24 24" width="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>':""}
+    </button>`;
+  });
+  html+=`<div class="dd-div"></div>
+    <button class="dd-item" id="newWsBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg> New workspace</button>`;
+  $("#wsMenu").innerHTML=html;
+  $$("#wsMenu [data-ws]").forEach(b=>b.onclick=()=>switchWs(b.dataset.ws));
+  $("#newWsBtn").onclick=()=>{$("#wsDd").classList.remove("open");openModal("#modalBg");$("#newWsName").value="";setTimeout(()=>$("#newWsName").focus(),60);};
+}
+
+function switchWs(id){
+  currentWs=id;$("#wsDd").classList.remove("open");
+  const w=wsById(id);
+  $("#wsIc").textContent=wsIcon(w.name);$("#wsName").textContent=w.name;
+  $("#solveWsName").textContent=w.name;$$(".solveWsName").forEach(e=>e.textContent=w.name);
+  if($("#sbWsLabel")) $("#sbWsLabel").textContent=w.name;
+  $("#ctxFiles").textContent=w.files.length+" file"+(w.files.length===1?"":"s");
+  renderTags($("#wsTags"),w.tags);renderTags($("#filesTags"),w.tags);
+  renderWsMenu();renderSolve();renderFiles();renderOutputs();renderExperiments();
+}
+
+/* ── greeting ── */
+function greeting(){
+  const h=new Date().getHours();
+  return h<12?"Good morning":h<17?"Good afternoon":"Good evening";
+}
+
+/* ── views ── */
+const viewToRail={home:"workspace",solve:"workspace",queue:"workspace",
+  files:"workspace",experiments:"workspace",outputs:"workspace",run:"workspace",
+  library:"platform",providers:"platform",billing:"account",settings:"account"};
+function setRail(rail){
+  $$(".sidebar-btn[data-rail]").forEach(b=>b.classList.toggle("active",b.dataset.rail===rail));
+  $$(".panel-rail-section").forEach(s=>s.classList.toggle("active",s.id==="rail-"+rail));
+}
+function setView(v){
+  setRail(viewToRail[v]||"workspace");
+  if(v!=="run") prevView=v;
+  $$(".nav-item[data-view]").forEach(t=>t.classList.toggle("active",t.dataset.view===v));
+  $$(".view").forEach(s=>s.classList.toggle("show",s.id==="view-"+v));
+  if(v==="home") renderHome();
+  if(v==="queue") renderQueue();
+  if(v==="files") renderFiles();
+  if(v==="outputs") renderOutputs();
+  if(v==="experiments") renderExperiments();
+  if(v==="library") renderLibrary();
+  if(v==="providers") renderProviders();
+  window.scrollTo({top:0,behavior:"instant"});
+  if(window.innerWidth<=900) closeSidebar();
+}
+$$(".nav-item[data-view]").forEach(t=>t.onclick=()=>setView(t.dataset.view));
+$$(".sidebar-btn[data-rail]").forEach(b=>b.onclick=()=>{
+  const first=$("#rail-"+b.dataset.rail+" .nav-item[data-view]");
+  if(first) setView(first.dataset.view);
+});
+
+function renderHome(){
+  $("#dashGreeting").textContent=greeting()+", Rocher.";
+  const active=JOBS.filter(j=>j.status==="running"||j.status==="needs");
+  $("#activeGrid").innerHTML=active.length?active.map(j=>{
+    const ws=wsById(j.ws);
+    return `<div class="ac${j.status==="needs"?" needs":""}" data-job="${j.id}" style="cursor:pointer" onclick="openRun(${j.id})">
+      <div class="ac-title">${j.title}</div>
+      <div class="ac-meta">${ws.name} · ${j.created} · ${statusPill(j.status)}</div>
+      <div class="ac-bar-wrap">
+        <div class="ac-bar"><i style="width:${j.step/9*100}%"></i></div>
+        <div class="ac-stat">Step ${j.step} of 9</div>
+      </div>
+    </div>`;
+  }).join(""):`<div style="color:var(--color-text-tertiary);font-size:14px;padding:12px 0">No active jobs right now.</div>`;
+  const recent=JOBS.slice(0,4);
+  $("#recentJobs").innerHTML=recent.map(jobCard).join("");
+  bindJobCards("#recentJobs");
+}
+
+function renderSolve(){
+  const dom=$$(".dp.active")[0]?.dataset.dom||"all";
+  const filtered=dom==="all"?EXAMPLES:EXAMPLES.filter(e=>e.dom===dom||e.dom==="all");
+  $("#exGrid").innerHTML=(filtered.length?filtered:EXAMPLES).map((e,i)=>`<button class="ex" data-ex="${EXAMPLES.indexOf(e)}"><div class="ex-cat">${e.cat}</div><div class="ex-t">${e.t}</div></button>`).join("");
+  $$("#exGrid .ex").forEach(b=>b.onclick=()=>{$("#prompt").value=EXAMPLES[+b.dataset.ex].t;$("#prompt").focus();updateSend();});
+  const mine=JOBS.filter(j=>j.ws===currentWs).slice(0,4);
+  $("#solveJobs").innerHTML=mine.length?mine.map(jobCard).join(""):`<div class="empty"><b>No problems yet</b>Describe one above to get started.</div>`;
+  bindJobCards("#solveJobs");
+}
+
+function renderQueue(){
+  const needs=JOBS.filter(j=>j.status==="needs");
+  $("#queueNeeds").innerHTML=needs.length?`<div class="section-row"><h2>Waiting for you</h2></div><div class="jobs" id="qNeeds">${needs.map(jobCard).join("")}</div>`:"";
+  if(needs.length) bindJobCards("#qNeeds");
+  const active=JOBS.filter(j=>j.status!=="needs");
+  $("#queueAll").innerHTML=active.length?active.map(jobCard).join(""):`<div class="empty"><b>Queue is clear</b>Nothing else is processing right now.</div>`;
+  bindJobCards("#queueAll");
+}
+
+function renderFiles(){
+  const w=wsById(currentWs);
+  const ic={csv:'<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5" opacity=".5"/>',pdf:'<path d="M7 3h7l5 5v13H7z"/>',xls:'<path d="M7 3h7l5 5v13H7z"/>',doc:'<path d="M7 3h7l5 5v13H7z"/>'};
+  $("#flist").innerHTML=w.files.map(f=>`<div class="frow">
+    <div class="fic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">${ic[f.t]||ic.doc}</svg></div>
+    <div class="fmid"><div class="fn">${f.n}</div><div class="fm">${f.m}</div></div>
+    <div class="dd file-dd"><button class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></svg></button>
+      <div class="dd-menu right">
+        <button class="dd-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>Open</button>
+        <button class="dd-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 4v11M7 11l5 5 5-5M5 20h14" stroke-linecap="round" stroke-linejoin="round"/></svg>Download</button>
+        <div class="dd-div"></div>
+        <button class="dd-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" stroke-linecap="round" stroke-linejoin="round"/></svg>Remove</button>
+      </div></div>
+  </div>`).join("");
+  $$("#flist .file-dd").forEach(bindDdEl);
+  // data mapper stub
+  if(w.files.some(f=>f.t==="csv"||f.t==="xls")){
+    $("#mapperSlot").innerHTML=`
+      <div class="section-row" style="margin-top:32px"><h2>Data mapping</h2><button class="btn btn-sm btn-ghost">Edit</button></div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Column</th><th>Interpreted as</th></tr></thead>
+          <tbody>
+            <tr><td class="col-key">Vehicle ID</td><td><span class="mapper-tag">Decision variable</span></td></tr>
+            <tr><td class="col-key">Delivery time</td><td><span class="mapper-tag">Constraint</span></td></tr>
+            <tr><td class="col-key">Fuel cost</td><td><span class="mapper-tag">Objective weight</span></td></tr>
+            <tr><td class="col-key">Depot location</td><td><span class="mapper-tag">Routing node</span></td></tr>
+            <tr><td class="col-key">Driver shift length</td><td><span class="mapper-tag">Hard constraint</span></td></tr>
+          </tbody>
+        </table>
+      </div>`;
+  } else {
+    $("#mapperSlot").innerHTML="";
+  }
+}
+
+function renderExperiments(){
+  $("#expBody").innerHTML=EXPERIMENTS.map(e=>`<tr onclick="void(0)">
+    <td class="mono">${e.run}</td>
+    <td class="method">${e.method}</td>
+    <td>${statusPill(e.status==="done"?"done":e.status==="running"?"running":e.status==="failed"?"failed":"queued")}</td>
+    <td class="mono">${e.cost}</td>
+    <td class="mono">${e.quality}</td>
+    <td style="color:var(--color-text-secondary);font-size:13px">${e.verdict}</td>
+  </tr>`).join("");
+}
+
+function renderOutputs(){
+  const outs=JOBS.filter(j=>j.ws===currentWs&&j.status==="done");
+  $("#outputsList").innerHTML=outs.length?outs.map(j=>`<button class="job st-done" data-rep="${j.id}">
+    <div class="fic" style="width:34px;height:34px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6" opacity=".7" stroke-linecap="round"/></svg></div>
+    <div class="job-mid"><div class="job-t">${j.title}</div><div class="job-meta"><span>Report · ${j.created}</span></div></div>
+    <div class="job-right"><span class="btn btn-sm">View report</span></div>
+  </button>`).join(""):`<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 3h7l5 5v13H7z"/></svg><b>No outputs yet</b>Finished problems will appear here.</div>`;
+  $$("#outputsList [data-rep]").forEach(b=>b.onclick=()=>openReport(+b.dataset.rep));
+}
+
+function renderLibrary(){
+  const cats=["All",...new Set(ALGORITHMS.map(a=>a.cat))];
+  $("#algFilters").innerHTML=cats.map(c=>`<button class="alg-filter${c==="All"?" active":""}" data-cat="${c}">${c}</button>`).join("");
+  $$(".alg-filter").forEach(b=>b.onclick=()=>{$$(".alg-filter").forEach(f=>f.classList.remove("active"));b.classList.add("active");filterAlgorithms(b.dataset.cat);});
+  filterAlgorithms("All");
+}
+function filterAlgorithms(cat){
+  const list=cat==="All"?ALGORITHMS:ALGORITHMS.filter(a=>a.cat===cat);
+  $("#algGrid").innerHTML=list.map(a=>`<div class="alg-card">
+    <div class="alg-cat">${a.cat}</div>
+    <div class="alg-name">${a.name}</div>
+    <div class="alg-desc">${a.desc}</div>
+    <div class="alg-fits">${a.fits.map(f=>`<span class="alg-fit-tag">${f}</span>`).join("")}</div>
+    <span class="alg-use">Use this <svg viewBox="0 0 24 24" width="13" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+  </div>`).join("");
+}
+
+function renderProviders(){
+  $("#providerList").innerHTML=PROVIDERS.map(p=>`<div class="prow${p.status==="connected"?" connected":""}">
+    <div class="prov-ic">${p.name.split(" ").map(w=>w[0]).join("").slice(0,3)}</div>
+    <div class="prov-mid">
+      <div class="prov-name">${p.name}</div>
+      <div class="prov-meta">${p.backends}</div>
+    </div>
+    <div class="prov-right">
+      <span class="status-dot ${p.status==="connected"?"connected":p.status==="available"?"available":""}"></span>
+      <span class="queue-lbl">${p.queue}</span>
+      ${p.status==="connected"?'<button class="btn btn-sm btn-ok">Connected</button>':p.status==="available"?'<button class="btn btn-sm btn-primary">Connect</button>':'<button class="btn btn-sm" disabled style="opacity:.5">Coming soon</button>'}
+    </div>
+  </div>`).join("");
+}
+
+/* ── run detail ── */
+function openRun(id){
+  const job=JOBS.find(j=>j.id===id);if(!job) return;
+  currentJob=job;
+  $$(".view").forEach(s=>s.classList.remove("show"));
+  $("#view-run").classList.add("show");
+  $$(".nav-item").forEach(t=>t.classList.remove("active"));
+  $("#runTitle").textContent=job.title;
+  window.scrollTo({top:0,behavior:"instant"});
+  renderPlan(job);
+  if(job.status==="running"||job.status==="queued") animateRun(job);
+}
+$("#runBack").onclick=()=>setView(prevView);
+
+function phaseBarHtml(job){
+  const phases=[
+    {label:"Problem intake",done:job.step>0,active:job.step===0&&job.status!=="done"},
+    {label:"Formulation",done:job.step>2,active:job.step>=1&&job.step<=2&&job.status!=="done"},
+    {label:"Experiments",done:job.step>6,active:job.step>=3&&job.step<=6&&job.status!=="done"},
+    {label:"Results",done:job.status==="done",active:job.step>=7&&job.status!=="done"}
+  ];
+  let html='<div class="phase-bar">';
+  phases.forEach((p,i)=>{
+    const cls=p.done?"done":p.active?"active":"";
+    html+=`<div class="ph-step ${cls}"><div class="ph-dot"></div><span>${p.label}</span></div>`;
+    if(i<phases.length-1) html+=`<div class="ph-line ${p.done?"done":""}"></div>`;
+  });
+  html+='</div>';
+  return html;
+}
+
+function renderPlan(job){
+  $("#phaseBarSlot").innerHTML=phaseBarHtml(job);
+  const list=$("#planList");list.innerHTML="";
+  STEPS.forEach((s,i)=>{
+    let st=i<job.step?"done":(i===job.step?(s.gate?"needs":(job.status==="queued"?"pending":"running")):"pending");
+    if(job.status==="done") st="done";
+    const open=st==="needs"||st==="running";
+    const el=document.createElement("div");
+    el.className="step "+st+(open?" open":"");el.dataset.i=i;
+    el.innerHTML=`
+      <div class="rail">${statusIcon(st)}<div class="line"></div></div>
+      <div class="smain">
+        <div class="step-head">
+          <span class="step-title">${s.t}</span>
+          <span class="owner${s.human?" human":""}">${s.human?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="3.2"/><path d="M5 20a7 7 0 0114 0" stroke-linecap="round"/></svg>':''}${s.owner}</span>
+          <span class="step-stat">${st==="done"?"Done":st==="running"?"Working…":st==="needs"?"Needs you":""}</span>
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" stroke-linecap="round"/></svg>
+        </div>
+        <div class="step-detail">
+          <ul class="notes">${(st==="pending"?[s.hint]:s.notes).map(n=>`<li>${n}</li>`).join("")}</ul>
+          ${st==="needs"?gateHtml(s.gate):""}
+        </div>
+      </div>`;
+    el.querySelector(".step-head").onclick=()=>el.classList.toggle("open");
+    list.appendChild(el);
+  });
+  const pct=job.status==="done"?100:Math.round(job.step/9*100);
+  $("#rpFill").style.width=pct+"%";
+  $("#rpTxt").textContent=`Step ${job.status==="done"?9:job.step} of 9 · ${job.status==="done"?"complete":job.status==="needs"?"waiting on you":job.status}`;
+  $("#hitlSlot").innerHTML=job.status==="needs"
+    ?`<div class="hitl-banner"><div class="hb-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="8" r="3.4"/><path d="M5 20a7 7 0 0114 0" stroke-linecap="round"/></svg></div><div><b>Your decision needed.</b> <span>We've paused here so you can review before we continue.</span></div></div>`
+    :"";
+  $("#resultSlot").innerHTML=job.status==="done"?resultHtml():"";
+  if(job.status==="done") bindReportBtn();
+  $$("#planList .gate-actions [data-act]").forEach(b=>b.onclick=()=>handleGate(job,b.dataset.act));
+  updateRunMeta(job);
+}
+
+function gateHtml(gate){
+  if(gate==="hardware") return `<div class="gate">
+    <div class="g-q">Ready to run on a real quantum computer?</div>
+    <div class="g-d">This sends your experiment to actual quantum hardware. It uses some of your compute credits and takes about 6 minutes in the queue. You can keep using the simulator instead.</div>
+    <div class="gate-actions">
+      <button class="btn btn-amber" data-act="approve">Approve &amp; run on hardware</button>
+      <button class="btn" data-act="sim">Keep using simulator</button>
+      <button class="btn btn-ghost" data-act="hold">Hold for now</button>
+    </div></div>`;
+  return `<div class="gate">
+    <div class="g-q">Refine further, or accept this result?</div>
+    <div class="g-d">A deeper circuit might improve the answer slightly, but takes longer and costs more credits. You decide how far to push it.</div>
+    <div class="gate-actions">
+      <button class="btn" data-act="iterate">Try to improve it</button>
+      <button class="btn btn-amber" data-act="accept">Accept this result</button>
+    </div></div>`;
+}
+
+function resultHtml(){
+  const r=RESULTS.default;
+  return `<div class="result">
+    <div class="verdict-badge ${r.verdictClass}">${r.verdictLabel}</div>
+    <h3>${r.headline}</h3>
+    <p>${r.body}</p>
+    <div class="r-stats">${r.stats.map(([k,v])=>`<div class="r-stat"><div class="rk">${k}</div><div class="rv">${v}</div></div>`).join("")}</div>
+    <p>${r.verdict.replace(/\*(.*?)\*/g,"<em>$1</em>")}</p>
+    <div class="r-actions">
+      <button class="btn btn-primary" id="viewRepBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5" opacity=".6"/></svg>View full report</button>
+      <button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 4v11M7 11l5 5 5-5M5 20h14" stroke-linecap="round" stroke-linejoin="round"/></svg>Download</button>
+      <button class="btn btn-ghost">Save to Outputs</button>
+    </div></div>`;
+}
+function bindReportBtn(){const b=$("#viewRepBtn");if(b) b.onclick=()=>openReport(currentJob.id);}
+
+function handleGate(job,act){
+  if(act==="hold"){job.status="queued";refreshAll();renderPlan(job);return;}
+  job.step++;job.status="running";
+  refreshAll();renderPlan(job);animateRun(job);
+}
+
+function updateRunMeta(job){
+  const ws=wsById(job.ws);
+  $("#runMeta").innerHTML=`<span class="pill"><span class="ws-pill-ic">${wsIcon(ws.name)}</span>${ws.name}</span>${statusPill(job.status)}<span style="font-size:12px;color:var(--color-text-tertiary)">Started ${job.created}</span>`;
+}
+
+async function animateRun(job){
+  const token=++runToken;
+  job.status="running";
+  while(job.step<STEPS.length){
+    if(token!==runToken) return;
+    const s=STEPS[job.step];
+    if(s.gate){job.status="needs";refreshAll();renderPlan(job);return;}
+    renderPlan(job);
+    await typeActive(job.step,token);
+    if(token!==runToken) return;
+    job.step++;refreshAll();
+  }
+  job.status="done";job.step=9;
+  refreshAll();renderPlan(job);
+}
+
+/* ── real API streaming ── */
+function streamRun(job){
+  if(!job.apiId) return animateRun(job);
+  const tok=++runToken;
+  const src=new EventSource(`/api/jobs/${job.apiId}/events`);
+  src.onmessage=e=>{
+    if(tok!==runToken){src.close();return;}
+    try{handleAgentEvent(job,JSON.parse(e.data),src,tok);}catch(_){}
+  };
+  src.onerror=()=>{
+    src.close();
+    if(job.status==="running"){job.status="failed";refreshAll();renderPlan(job);}
+  };
+}
+
+function handleAgentEvent(job,ev,src,tok){
+  if(tok!==runToken){src.close();return;}
+  switch(ev.type){
+    case "step_start":
+      job.step=ev.step;job.status="running";
+      renderPlan(job);updateRunMeta(job);
+      break;
+    case "step_note":
+      liveNote(ev.step,ev.note,tok);
+      break;
+    case "step_done":
+      // step_start for the next step will follow immediately; no action needed.
+      break;
+    case "tool_result":
+      if(ev.stdout){
+        const snippet=ev.stdout.trim().split("\n").slice(-3).join("\n");
+        liveNote(job.step,snippet?`Output: ${snippet}`:"Circuit executed.",tok);
+      }
+      break;
+    case "report":
+      job._report=ev.markdown;
+      break;
+    case "error":
+      job.status="failed";
+      refreshAll();renderPlan(job);src.close();
+      break;
+    case "done":
+      if(job.status!=="failed"){job.step=9;job.status="done";}
+      refreshAll();renderPlan(job);src.close();
+      if(job.status==="done") bindReportBtn();
+      break;
+  }
+}
+
+function liveNote(step,text,tok){
+  const el=$(`#planList .step[data-i="${step}"]`);if(!el) return;
+  el.classList.add("open");
+  const ul=el.querySelector(".notes");if(!ul) return;
+  const li=document.createElement("li");li.className="typed";ul.appendChild(li);
+  typeNote(li,text,tok);
+}
+
+async function typeNote(li,text,tok){
+  const cur=document.createElement("span");cur.className="cursor";
+  for(let c=0;c<text.length;c++){
+    if(tok!==runToken) return;
+    li.textContent=text.slice(0,c+1);li.appendChild(cur);
+    await sleep(5+Math.random()*10);
+  }
+  li.textContent=text;
+}
+
+/* ── markdown renderer (for real agent reports) ── */
+function fmt(t){
+  return t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
+    .replace(/\*(.+?)\*/g,"<em>$1</em>")
+    .replace(/`([^`]+)`/g,`<code style="font-family:var(--font-mono);font-size:12px;background:var(--color-bg-selected);padding:1px 5px;border-radius:4px;color:var(--color-text-primary)">$1</code>`);
+}
+function renderMarkdown(md){
+  let html="",inP=false,inCode=false,codeLines=[];
+  for(const raw of md.split("\n")){
+    const line=raw;
+    if(line.startsWith("```")){
+      if(inCode){
+        html+=`<pre class="md-pre"><code>${codeLines.join("\n").replace(/&/g,"&amp;").replace(/</g,"&lt;")}</code></pre>`;
+        codeLines=[];inCode=false;
+      }else{if(inP){html+="</p>";inP=false;}inCode=true;}
+      continue;
+    }
+    if(inCode){codeLines.push(line);continue;}
+    if(line.startsWith("## ")){if(inP){html+="</p>";inP=false;}html+=`<h2>${fmt(line.slice(3))}</h2>`;}
+    else if(line.startsWith("### ")){if(inP){html+="</p>";inP=false;}html+=`<h3 style="font-size:15px;font-weight:700;margin:14px 0 6px;color:var(--color-text-primary)">${fmt(line.slice(4))}</h3>`;}
+    else if(line.startsWith("- ")){if(inP){html+="</p>";inP=false;}html+=`<p class="rp" style="padding-left:14px">• ${fmt(line.slice(2))}</p>`;}
+    else if(line.trim()===""){if(inP){html+="</p>";inP=false;}}
+    else{if(!inP){html+='<p class="rp">';inP=true;}else html+=" ";html+=fmt(line);}
+  }
+  if(inP) html+="</p>";
+  return html;
+}
+
+async function typeActive(i,token){
+  const el=$(`#planList .step[data-i="${i}"]`);if(!el) return;
+  el.classList.add("open");
+  const ul=el.querySelector(".notes");const notes=STEPS[i].notes;
+  ul.innerHTML="";
+  for(const n of notes){
+    if(token!==runToken) return;
+    const li=document.createElement("li");li.className="typed";ul.appendChild(li);
+    const cur=document.createElement("span");cur.className="cursor";
+    for(let c=0;c<n.length;c++){if(token!==runToken) return;li.textContent=n.slice(0,c+1);li.appendChild(cur);await sleep(7+Math.random()*15);}
+    li.textContent=n;await sleep(180);
+  }
+  await sleep(260);
+}
+
+/* ── report modal ── */
+function openReport(id){
+  const job=JOBS.find(j=>j.id===id);const ws=wsById(job.ws);
+  let body;
+  if(job._report){
+    // Real agent report — render markdown
+    body=renderMarkdown(job._report);
+  }else{
+    // Demo report
+    const r=RESULTS.default;
+    body=`<h2>In short</h2><p class="rp">${r.headline} ${r.body}</p>
+    <h2>What we did</h2><p class="rp">We searched proven quantum approaches, drafted and simulated candidate solutions, streamlined the best one, and — with your approval — ran it on a real quantum computer over 1,024 trials.</p>
+    <h2>What we found</h2>
+    <div class="r-stats" style="margin:6px 0 14px">${r.stats.map(([k,v])=>`<div class="r-stat"><div class="rk">${k}</div><div class="rv">${v}</div></div>`).join("")}</div>
+    <p class="rp">${r.verdict.replace(/\*(.*?)\*/g,"<em>$1</em>")}</p>
+    <h2>Recommended next step</h2><p class="rp">Keep this plan as your working baseline. When your network grows past what classical planners handle well, re-run this — that's where a quantum advantage is most likely to appear.</p>`;
+  }
+  $("#reportModal").innerHTML=`
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:4px">
+      <div><div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--color-text-tertiary);margin-bottom:6px">Report · ${ws.name}</div>
+      <h3 style="margin:0;font-size:19px;font-weight:700;letter-spacing:-.025em">${job.title}</h3></div>
+      <button class="icon-btn" data-close><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg></button>
+    </div>
+    ${body}
+    <div class="r-actions" style="margin-top:18px">
+      <button class="btn btn-primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 4v11M7 11l5 5 5-5M5 20h14" stroke-linecap="round" stroke-linejoin="round"/></svg>Download .pdf</button>
+      <button class="btn btn-ghost" data-close>Close</button>
+    </div>`;
+  openModal("#reportBg");
+  $$("#reportModal [data-close]").forEach(b=>b.onclick=()=>closeModal("#reportBg"));
+}
+
+/* ── modals ── */
+function openModal(id){$(id).classList.add("show");}
+function closeModal(id){$(id).classList.remove("show");}
+$$("[data-close]").forEach(b=>b.onclick=()=>closeModal("#modalBg"));
+$$(".modal-bg").forEach(bg=>bg.addEventListener("click",e=>{if(e.target===bg) bg.classList.remove("show");}));
+$("#newWsCreate").onclick=()=>{
+  const name=$("#newWsName").value.trim()||"Untitled workspace";
+  const id="ws"+(WORKSPACES.length+1);
+  WORKSPACES.push({id,name,tags:[],files:[]});
+  closeModal("#modalBg");renderWsMenu();switchWs(id);setView("solve");
+};
+$("#newWsName").addEventListener("keydown",e=>{if(e.key==="Enter") $("#newWsCreate").click();});
+
+/* ── composer ── */
+function updateSend(){
+  const v=$("#prompt").value.trim();
+  $("#sendBtn").disabled=!v;
+  $("#fitCheck").style.display=v.length>=20?"flex":"none";
+}
+$("#prompt").addEventListener("input",e=>{updateSend();e.target.style.height="auto";e.target.style.height=Math.min(e.target.scrollHeight,240)+"px";});
+$("#prompt").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();submit();}});
+$("#sendBtn").onclick=submit;
+$("#attachBtn").onclick=()=>setView("files");
+$$("#effortMenu [data-effort]").forEach(b=>b.onclick=()=>{$("#effortVal").textContent=b.dataset.effort;$("#effortDd").classList.remove("open");});
+
+/* domain pills */
+$$("#domainSelect .dp").forEach(b=>b.onclick=()=>{
+  $$("#domainSelect .dp").forEach(p=>p.classList.remove("active"));
+  b.classList.add("active");
+  renderSolve();
+});
+
+async function submit(){
+  const txt=$("#prompt").value.trim();if(!txt) return;
+  const job={id:jobSeq++,title:txt,ws:currentWs,step:0,status:"running",created:"just now",apiId:null,_report:null};
+  JOBS.unshift(job);$("#prompt").value="";$("#prompt").style.height="auto";updateSend();
+  $("#fitCheck").style.display="none";
+  refreshAll();openRun(job.id);
+  // Try real API; fall back to demo animation if unavailable.
+  try{
+    const res=await fetch("/api/jobs",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({problem:txt,workspace:currentWs})});
+    if(res.ok){const d=await res.json();job.apiId=d.id;streamRun(job);return;}
+  }catch(_){}
+  animateRun(job); // demo mode
+}
+
+/* ── dashboard new task ── */
+$("#dashNewBtn").onclick=()=>setView("solve");
+
+/* ── files: mock upload ── */
+$("#dropzone").onclick=()=>{
+  const w=wsById(currentWs);
+  const samples=[["notes_meeting.pdf","Document · 64 KB · just now","pdf"],["data_export.csv","Dataset · 320 KB · just now","csv"],["reference_specs.xlsx","Spreadsheet · 180 KB · just now","xls"]];
+  w.files.unshift(samples[w.files.length%samples.length].reduce((o,v,k)=>(o[["n","m","t"][k]]=v,o),{}));
+  renderFiles();$("#ctxFiles").textContent=w.files.length+" files";
+};
+
+/* ── sidebar mobile ── */
+function openSidebar(){$("#sidebar").classList.add("open");$("#sidebarOverlay").classList.add("show");}
+function closeSidebar(){$("#sidebar").classList.remove("open");$("#sidebarOverlay").classList.remove("show");}
+$("#hamburger").onclick=()=>{if($("#sidebar").classList.contains("open")) closeSidebar();else openSidebar();};
+$("#sidebarOverlay").onclick=closeSidebar;
+
+/* ── refresh ── */
+function refreshAll(){
+  const needs=JOBS.filter(j=>j.status==="needs").length;
+  const badge=$("#queueBadge");badge.style.display=needs?"grid":"none";badge.textContent=needs;
+  if($("#view-home").classList.contains("show")) renderHome();
+  renderSolve();
+  if($("#view-queue").classList.contains("show")) renderQueue();
+  if($("#view-outputs").classList.contains("show")) renderOutputs();
+}
+
+/* ── init ── */
+renderWsMenu();switchWs("log");updateSend();refreshAll();
+setView("home");
+</script>
+</body>
+</html>

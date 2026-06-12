@@ -1,0 +1,8 @@
+# Install the latest of each — pip resolves to the newest compatible release.
+anthropic>=0.69
+qiskit>=1.0
+qiskit-aer>=0.14
+rich>=13.7
+python-dotenv>=1.0
+fastapi>=0.111
+uvicorn[standard]>=0.30
