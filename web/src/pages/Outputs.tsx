@@ -4,6 +4,7 @@ import { DocumentRegular } from "@fluentui/react-icons";
 import { useApp } from "../store/AppStore";
 import { PageHeader } from "../components/shared/PageHeader";
 import { EmptyState } from "../components/shared/EmptyState";
+import { timeAgo } from "../lib/time";
 
 const useStyles = makeStyles({
   card: { display: "flex", alignItems: "center", gap: "14px", padding: "12px 16px", cursor: "pointer" },
@@ -36,7 +37,7 @@ export function Outputs() {
               <div className={s.ic}><DocumentRegular fontSize={18} color="gray" /></div>
               <div className={s.mid}>
                 <div className={s.title}>{j.title}</div>
-                <div className={s.meta}>Report · {j.created}</div>
+                <div className={s.meta}>Report · {timeAgo(j.createdAt)}</div>
               </div>
               <Button appearance="secondary" size="small">View report</Button>
             </Card>

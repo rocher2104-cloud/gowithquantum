@@ -7,6 +7,7 @@ import {
 import { DocumentRegular, ArrowDownloadRegular } from "@fluentui/react-icons";
 import { PageHeader } from "../components/shared/PageHeader";
 import { useApp } from "../store/AppStore";
+import { timeAgo } from "../lib/time";
 
 const JOURNAL_TARGETS = [
   "Nature", "Nature Physics", "Physical Review Letters", "Physical Review X",
@@ -274,7 +275,7 @@ export function Reports() {
                     <tr key={job.id} style={{ borderBottom: `1px solid ${tokens.colorNeutralStroke1}` }}>
                       <td style={{ padding: "8px 12px", fontSize: 12 }}>{job.title.slice(0, 40)}...</td>
                       <td style={{ padding: "8px 12px" }}><Badge appearance="tint" color="brand" size="small">Technical</Badge></td>
-                      <td style={{ padding: "8px 12px", fontSize: 12, color: tokens.colorNeutralForeground3 }}>{job.created}</td>
+                      <td style={{ padding: "8px 12px", fontSize: 12, color: tokens.colorNeutralForeground3 }}>{timeAgo(job.createdAt)}</td>
                       <td style={{ padding: "8px 12px" }}>
                         <Button size="small" appearance="subtle" icon={<ArrowDownloadRegular />}>Download</Button>
                       </td>

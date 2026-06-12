@@ -8,6 +8,7 @@ iterates if needed, and finishes with a Markdown report.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import anthropic
 from rich.console import Console
@@ -15,6 +16,27 @@ from rich.panel import Panel
 from rich.syntax import Syntax
 
 from .quantum_runner import run_quantum_circuit
+
+_STEPS_FILE = Path(__file__).resolve().parent.parent / "shared" / "steps.json"
+
+
+def _load_step_titles() -> list[str]:
+    """Canonical step titles live in /shared/steps.json, shared with the web app."""
+    try:
+        data = json.loads(_STEPS_FILE.read_text())
+        return [s["t"] for s in data["steps"]]
+    except Exception:
+        return [
+            "Understand your problem",
+            "Find proven approaches",
+            "Draft candidate solutions",
+            "Quick test at small scale",
+            "Streamline the solution",
+            "Run the real experiment",
+            "Make sense of the results",
+            "Refine together",
+            "Check for a real advantage",
+        ]
 
 SYSTEM_PROMPT = """\
 You are gowithquantum — an autonomous quantum-computing agent. A user describes \
@@ -41,6 +63,12 @@ Don't just build a circuit.
 the code and run again. Iterate until the result is trustworthy. Use the tool \
 whenever you need to run or verify code — never assume what the output would be.
 4. Finish with a final report in Markdown as your last message (no tool call).
+
+As you work, call the report_progress tool whenever you move to a new phase of \
+the 9-step plan (0 understand · 1 find approaches · 2 draft · 3 small-scale \
+test · 4 streamline · 5 run experiment · 6 interpret · 7 refine · 8 check \
+advantage), with a one-line plain-language note about what you are doing. This \
+drives the live progress display the user watches — keep notes free of jargon.
 
 The report must contain these sections:
 - ## Problem — one-paragraph restatement of what the user asked.
@@ -84,27 +112,43 @@ TOOLS = [
             },
             "required": ["code"],
         },
-    }
+    },
+    {
+        "name": "report_progress",
+        "description": (
+            "Report which phase of the 9-step plan you are in, with a short "
+            "plain-language note. Call this whenever you move to a new phase; "
+            "it drives the live progress display the user watches. Steps: "
+            "0 understand · 1 find approaches · 2 draft · 3 small-scale test · "
+            "4 streamline · 5 run experiment · 6 interpret · 7 refine · "
+            "8 check advantage."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "step": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 8,
+                    "description": "Index of the plan step you are now working on.",
+                },
+                "note": {
+                    "type": "string",
+                    "description": "One jargon-free sentence on what you are doing.",
+                },
+            },
+            "required": ["step", "note"],
+        },
+    },
 ]
 
 
 class QuantumAgent:
     """Drives a Claude tool-use loop to solve a problem on a quantum simulator."""
 
-    # Maps agent milestones → the 9-step plan index shown in the UI.
-    # Steps: 0 understand · 1 approaches · 2 draft · 3 test · 4 streamline
-    #        5 run · 6 sense · 7 refine · 8 advantage
-    _STEP_TITLES = [
-        "Understand your problem",
-        "Find proven approaches",
-        "Draft candidate solutions",
-        "Quick test at small scale",
-        "Streamline the solution",
-        "Run the real experiment",
-        "Make sense of the results",
-        "Refine together",
-        "Check for a real advantage",
-    ]
+    # The 9-step plan shown in the UI — loaded from /shared/steps.json so the
+    # web app and the agent can never drift apart.
+    _STEP_TITLES = _load_step_titles()
 
     def __init__(self, client=None, model="claude-opus-4-8", max_turns=12,
                  console=None, on_event=None):
@@ -116,6 +160,9 @@ class QuantumAgent:
         # Signature: {"type": str, ...}  — see _emit() calls below.
         self.on_event = on_event or (lambda _e: None)
         self._tool_calls = 0
+        self._current_step = 0
+        # Once the model self-reports progress we stop the heuristic mapping.
+        self._progress_reported = False
 
     # ── event helpers ──────────────────────────────────────────────────────────
 
@@ -149,8 +196,11 @@ class QuantumAgent:
         turn_num = 0
 
         for _ in range(self.max_turns):
-            # Advance the "find approaches / draft" steps on the first two turns
-            if turn_num == 0:
+            # Heuristic fallback for the first turns, until the model starts
+            # self-reporting via report_progress.
+            if self._progress_reported:
+                pass
+            elif turn_num == 0:
                 self._step_done(0)
                 self._step_start(1)
                 self._note(1, "Searching known algorithm families for a fit.")
@@ -174,7 +224,11 @@ class QuantumAgent:
                 )
 
             # Final turn — generating the report
-            self._step_done(min(6 + self._tool_calls, 7))
+            if self._progress_reported:
+                for done in range(self._current_step, 8):
+                    self._step_done(done)
+            else:
+                self._step_done(min(6 + self._tool_calls, 7))
             self._step_start(8)
             self._note(8, "Comparing against classical baseline. Documenting findings.")
             final_report = text
@@ -235,17 +289,42 @@ class QuantumAgent:
             final = stream.get_final_message()
         return final.content, final.stop_reason, "".join(text_parts)
 
+    def _handle_progress_report(self, block):
+        """The model self-reported its phase — drive the plan display from it."""
+        step = max(0, min(int(block.input.get("step", 0)), len(self._STEP_TITLES) - 1))
+        note = str(block.input.get("note", "")).strip()
+        if not self._progress_reported:
+            self._progress_reported = True
+        for done in range(self._current_step, step):
+            self._step_done(done)
+        self._current_step = step
+        self._step_start(step)
+        if note:
+            self._note(step, note)
+            self.console.print(f"[dim]· {self._STEP_TITLES[step]} — {note}[/]")
+        return {
+            "type": "tool_result",
+            "tool_use_id": block.id,
+            "content": json.dumps({"ok": True, "step": step}),
+        }
+
     def _execute_tools(self, content):
         """Run every tool_use block in the turn and return tool_result blocks."""
         results = []
         for block in content:
             if block.type != "tool_use":
                 continue
+            if block.name == "report_progress":
+                results.append(self._handle_progress_report(block))
+                continue
             code = block.input.get("code", "")
             explanation = block.input.get("explanation", "Running quantum circuit.")
 
-            # Advance plan steps based on how many tool calls we've made so far.
-            if self._tool_calls == 0:
+            # Heuristic plan advancement — only until the model starts
+            # self-reporting via report_progress.
+            if self._progress_reported:
+                pass
+            elif self._tool_calls == 0:
                 self._step_done(min(2, 2))
                 self._step_start(3)
                 self._note(3, "Running candidate circuits on the local simulator.")
@@ -283,11 +362,12 @@ class QuantumAgent:
                 "error": outcome.get("error", ""),
             })
 
-            # Advance to "make sense" step after execution.
-            step_after = 5 if self._tool_calls <= 1 else 7
-            self._step_done(step_after)
-            self._step_start(6)
-            self._note(6, "Analysing the measurements and cross-checking with the simulator.")
+            # Advance to "make sense" step after execution (heuristic fallback).
+            if not self._progress_reported:
+                step_after = 5 if self._tool_calls <= 1 else 7
+                self._step_done(step_after)
+                self._step_start(6)
+                self._note(6, "Analysing the measurements and cross-checking with the simulator.")
 
             results.append(
                 {

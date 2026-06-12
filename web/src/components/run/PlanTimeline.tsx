@@ -9,8 +9,9 @@ import {
 import type { Job } from "../../data/models";
 import { STEPS } from "../../data/mock";
 import { accents } from "../../theme/brand";
-import { GlossaryTerm } from "../shared/GlossaryTerm";
+import { useApp } from "../../store/AppStore";
 import { useRunSimulation } from "../../store/useRunSimulation";
+import type { GateEvent } from "../../protocol/events";
 
 type StepState = "done" | "running" | "needs" | "pending";
 
@@ -97,9 +98,11 @@ function NodeIcon({ state }: { state: StepState }) {
 export function PlanTimeline({ job }: { job: Job }) {
   const s = useStyles();
   const { resolveGate } = useRunSimulation(job.id);
+  const { gateInfo } = useApp();
   const [open, setOpen] = useState<Record<number, boolean>>({});
 
-  const pct = job.status === "done" ? 100 : Math.round((job.step / 9) * 100);
+  const total = STEPS.length;
+  const pct = job.status === "done" ? 100 : Math.round((job.step / total) * 100);
   const toggleOpen = (i: number) => setOpen((prev) => ({ ...prev, [i]: !prev[i] }));
   const isOpen = (i: number, st: StepState) => open[i] ?? (st === "needs" || st === "running");
 
@@ -108,7 +111,7 @@ export function PlanTimeline({ job }: { job: Job }) {
       <div className={s.planTop}>
         <span>Process plan</span>
         <span style={{ textTransform: "none", fontWeight: 500, color: tokens.colorNeutralForeground3 }}>
-          Step {job.status === "done" ? 9 : job.step} of 9 · {pct}%
+          Step {job.status === "done" ? total : job.step} of {total} · {pct}%
         </span>
       </div>
       {STEPS.map((step, i) => {
@@ -137,12 +140,17 @@ export function PlanTimeline({ job }: { job: Job }) {
               {expanded && (
                 <div>
                   <ul className={s.notes}>
-                    {(st === "pending" ? [step.hint] : step.notes).map((n, ni) => (
+                    {(st === "pending"
+                      ? [step.hint]
+                      : job.notes?.[i]?.length
+                        ? job.notes[i]
+                        : step.notes
+                    ).map((n, ni) => (
                       <li key={ni} className={s.note}>{n}</li>
                     ))}
                   </ul>
                   {st === "needs" && step.gate && (
-                    <GatePanel gate={step.gate} onAction={resolveGate} />
+                    <GatePanel gate={step.gate} info={gateInfo[job.id]} onAction={resolveGate} />
                   )}
                 </div>
               )}
@@ -154,17 +162,23 @@ export function PlanTimeline({ job }: { job: Job }) {
   );
 }
 
-function GatePanel({ gate, onAction }: { gate: "hardware" | "improve"; onAction: ReturnType<typeof useRunSimulation>["resolveGate"] }) {
+function GatePanel({ gate, info, onAction }: {
+  gate: "hardware" | "improve";
+  info?: GateEvent;
+  onAction: ReturnType<typeof useRunSimulation>["resolveGate"];
+}) {
   const s = useStyles();
   if (gate === "hardware") {
     return (
       <div className={s.gate}>
         <div className={s.gateQ}>Ready to run on a real quantum computer?</div>
         <div className={s.costLine}>
-          Estimated cost: <span className={s.costAmt}>~$7.50</span> · Queue time: <span className={s.costAmt}>~6 min</span>
+          Estimated cost: <span className={s.costAmt}>{info?.estimatedCost ?? "~$7.50"}</span> ·
+          {" "}Queue time: <span className={s.costAmt}>{info?.estimatedQueue ?? "~6 min"}</span>
         </div>
         <div className={s.gateD}>
-          This sends your experiment to actual quantum hardware. It uses some of your compute credits. You can keep using the simulator instead.
+          {info?.reasoning ??
+            "This sends your experiment to actual quantum hardware. It uses some of your compute credits. You can keep using the simulator instead."}
         </div>
         <div className={s.gateActions}>
           <Button appearance="primary" onClick={() => onAction("approve")}>Approve & run on hardware</Button>
@@ -178,7 +192,8 @@ function GatePanel({ gate, onAction }: { gate: "hardware" | "improve"; onAction:
     <div className={s.gate}>
       <div className={s.gateQ}>Refine further, or accept this result?</div>
       <div className={s.gateD}>
-        A deeper circuit might improve the answer slightly, but takes longer and costs more credits. You decide how far to push it.
+        {info?.reasoning ??
+          "A deeper circuit might improve the answer slightly, but takes longer and costs more credits. You decide how far to push it."}
       </div>
       <div className={s.gateActions}>
         <Button appearance="secondary" onClick={() => onAction("iterate")}>Try to improve it</Button>

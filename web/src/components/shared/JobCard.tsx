@@ -3,6 +3,9 @@ import { Card, makeStyles, tokens, ProgressBar } from "@fluentui/react-component
 import type { Job } from "../../data/models";
 import { useApp } from "../../store/AppStore";
 import { StatusBadge } from "./StatusBadge";
+import { VerdictBadge } from "./VerdictBadge";
+import { STEPS } from "../../data/mock";
+import { timeAgo } from "../../lib/time";
 import { accents } from "../../theme/brand";
 
 const ACCENT: Record<Job["status"], string> = {
@@ -64,23 +67,27 @@ export function JobCard({ job }: { job: Job }) {
   const navigate = useNavigate();
   const { workspaces } = useApp();
   const ws = workspaces.find((w) => w.id === job.ws);
-  const pct = job.status === "done" ? 100 : Math.round((job.step / 9) * 100);
+  const total = STEPS.length;
+  const pct = job.status === "done" ? 100 : Math.round((job.step / total) * 100);
 
   return (
     <Card className={s.card} onClick={() => navigate(`/run/${job.id}`)}>
       <span className={s.accent} style={{ background: ACCENT[job.status] }} />
       <div className={s.topRow}>
         <div className={s.title}>{job.title}</div>
+        {job.status === "done" && job.result && (
+          <VerdictBadge verdictClass={job.result.verdictClass} label={job.result.verdictLabel} />
+        )}
         <StatusBadge status={job.status} />
       </div>
       <div className={s.meta}>
-        {ws?.name} · {job.created}
+        {ws?.name} · {timeAgo(job.createdAt)}
       </div>
       <div className={s.bottomRow}>
         <div className={s.progressWrap}>
           <ProgressBar value={pct / 100} thickness="medium" color="brand" />
         </div>
-        <span className={s.pm}>{job.step}/9</span>
+        <span className={s.pm}>{job.status === "done" ? total : job.step}/{total}</span>
       </div>
     </Card>
   );

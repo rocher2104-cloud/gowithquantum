@@ -184,7 +184,7 @@ export function ProblemIntake() {
   const generateBriefAction = () => {
     const text = generateBrief(domain, complexity, problemSize, problemStatement, priority, approxRatio);
     const saved = upsertProblemBrief({
-      jobId: activeJob?.id ?? 0,
+      jobId: activeJob?.id ?? "",
       workspaceId: currentWs,
       problemStatement, domain, complexityClass: complexity,
       quantumAdvantageLiterature: adv.status,

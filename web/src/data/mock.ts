@@ -18,41 +18,28 @@ import type {
   Workspace,
 } from "./models";
 
+import STEPS_SHARED from "../../../shared/steps.json";
+import { minutesAgoIso } from "../lib/time";
+
 export interface Example {
   cat: string;
   t: string;
   dom: string;
 }
 
+/** Outcome-framed examples — what the user gets, not which algorithm runs. */
 export const EXAMPLES: Example[] = [
-  { cat: "Logistics", t: "Find the most efficient delivery routes for our 5 trucks across 40 stops", dom: "logistics" },
-  { cat: "Pharmaceuticals", t: "Screen molecules that could bind to the KRAS protein", dom: "chemistry" },
-  { cat: "Finance", t: "Stress-test our portfolio against a sudden market crash", dom: "finance" },
-  { cat: "Cybersecurity", t: "Check how hard our encryption is to break with a quantum search", dom: "all" },
-  { cat: "Materials", t: "Find a more stable structure for a battery cathode material", dom: "materials" },
-  { cat: "Energy", t: "Optimise the magnetic field layout for a fusion reactor", dom: "optimization" },
+  { cat: "Logistics", t: "Cut fuel costs by finding better routes for our 5 trucks across 40 stops", dom: "logistics" },
+  { cat: "Pharmaceuticals", t: "Shortlist drug candidates that could bind to the KRAS protein", dom: "chemistry" },
+  { cat: "Finance", t: "Find out how our portfolio holds up in a sudden market crash", dom: "finance" },
+  { cat: "Cybersecurity", t: "Test whether our encryption keys could be found by a quantum search", dom: "all" },
+  { cat: "Materials", t: "Find a cheaper, more stable battery cathode material", dom: "materials" },
+  { cat: "Energy", t: "Squeeze more output from a fusion reactor's magnetic field layout", dom: "optimization" },
 ];
 
-export const STEPS: RunStep[] = [
-  { t: "Understand your problem", owner: "You", human: true, hint: "Capturing your goal and turning it into something we can compute.",
-    notes: ["Read your description and the workspace files.", "Identified this as a routing / optimisation problem."] },
-  { t: "Find proven approaches", owner: "AI", hint: "Searching known algorithm families for a fit.",
-    notes: ["Matched 3 candidate approaches: QAOA, quantum annealing, Grover-assisted search.", "Ranked QAOA highest for this problem shape."] },
-  { t: "Draft candidate solutions", owner: "AI", hint: "Generating a few candidate quantum circuits to compare.",
-    notes: ["Drafted 3 circuit variants at small scale.", "Prepared them for a quick simulator test."] },
-  { t: "Quick test at small scale", owner: "Simulator", hint: "Trying tiny versions safely before using real hardware.",
-    notes: ["Ran all 3 candidates on a simulator.", "Candidate 2 returned the best routes — kept it."] },
-  { t: "Streamline the solution", owner: "Compiler", hint: "Making the circuit as efficient as possible to run.",
-    notes: ["Reduced the circuit depth from 40 to 22 operations.", "Mapped it onto a real hardware layout."] },
-  { t: "Run the real experiment", owner: "Hardware", hint: "Executing the experiment on an actual quantum computer.", gate: "hardware",
-    notes: ["Submitted to the hardware queue.", "Collected results across 1,024 runs."] },
-  { t: "Make sense of the results", owner: "AI", hint: "Reading the measurements and drawing conclusions.",
-    notes: ["The most common result points to one clear route plan.", "Cross-checked it against the simulator's answer."] },
-  { t: "Refine together", owner: "You + AI", human: true, hint: "Decide whether to improve further or accept the result.", gate: "improve",
-    notes: ["A deeper circuit might squeeze out a little more.", "Your call: keep refining, or accept what we have."] },
-  { t: "Check for a real advantage", owner: "Research", hint: "Proving whether quantum actually beats the classical approach here.",
-    notes: ["Compared against the best classical solver.", "Documented where (and if) quantum wins."] },
-];
+/** Canonical 9-step plan — single source of truth in /shared/steps.json,
+ * shared with the Python agent. */
+export const STEPS: RunStep[] = STEPS_SHARED.steps as RunStep[];
 
 export const WORKSPACES: Workspace[] = [
   { id: "log", name: "Logistics R&D", tags: ["operations", "routing"],
@@ -71,10 +58,10 @@ export const WORKSPACES: Workspace[] = [
 ];
 
 export const INITIAL_JOBS: Job[] = [
-  { id: 1, title: "Optimise 5-truck delivery routes across 40 stops", ws: "log", step: 5, status: "needs", created: "2 min ago" },
-  { id: 2, title: "Screen molecules for the KRAS protein target", ws: "pharma", step: 4, status: "running", created: "12 min ago" },
-  { id: 3, title: "Stress-test the portfolio against a market crash", ws: "fin", step: 0, status: "queued", created: "18 min ago" },
-  { id: 4, title: "Search for a weak encryption key (demo)", ws: "log", step: 9, status: "done", created: "1 hour ago" },
+  { id: "j-1", title: "Optimise 5-truck delivery routes across 40 stops", ws: "log", step: 5, status: "needs", createdAt: minutesAgoIso(2), domain: "logistics" },
+  { id: "j-2", title: "Screen molecules for the KRAS protein target", ws: "pharma", step: 4, status: "running", createdAt: minutesAgoIso(12), domain: "chemistry" },
+  { id: "j-3", title: "Stress-test the portfolio against a market crash", ws: "fin", step: 0, status: "queued", createdAt: minutesAgoIso(18), domain: "finance" },
+  { id: "j-4", title: "Search for a weak encryption key (demo)", ws: "log", step: 9, status: "done", createdAt: minutesAgoIso(60) },
 ];
 
 export const EXPERIMENTS: Experiment[] = [
@@ -201,7 +188,7 @@ const CONV_NOISY = CONV_DATA.map((d) => ({ ...d, energy: d.energy + 0.12 + Math.
 
 export const SIM_CONFIGS: SimulationConfig[] = [
   {
-    id: "sim-001", jobId: 1,
+    id: "sim-001", jobId: "j-1",
     simulatorType: "statevector", shots: 4096,
     noiseEnabled: false, noiseModel: "none",
     depolarizingRate: 0.001, t1Us: 100, t2Us: 80,
@@ -211,7 +198,7 @@ export const SIM_CONFIGS: SimulationConfig[] = [
     results: { convergenceData: CONV_DATA, approximationRatio: 0.89, classicalBaseline: 0.94 },
   },
   {
-    id: "sim-002", jobId: 1,
+    id: "sim-002", jobId: "j-1",
     simulatorType: "shot-based", shots: 4096,
     noiseEnabled: true, noiseModel: "depolarizing",
     depolarizingRate: 0.002, t1Us: 100, t2Us: 80,
@@ -227,7 +214,7 @@ export const SIM_CONFIGS: SimulationConfig[] = [
 
 export const HW_CONFIGS: HardwareConfig[] = [
   {
-    id: "hw-001", jobId: 1,
+    id: "hw-001", jobId: "j-1",
     providerId: "ibm", backend: "IBM Heron r2 (156q)",
     shots: 4096, optimizationLevel: 3,
     routingAlgorithm: "SABRE", errorMitigation: "ZNE",
@@ -288,7 +275,7 @@ export const PAPERS: LiteraturePaper[] = [
 
 export const RESOURCE_ESTIMATES: ResourceEstimate[] = [
   {
-    id: "re-001", jobId: 1,
+    id: "re-001", jobId: "j-1",
     algorithmName: "QAOA (p=3)",
     logicalQubits: 40, logicalErrorRate: 1e-10, physicalErrorRate: 1e-3,
     codeType: "surface", codeDistance: 17, problemSizeN: 40, magicStateOverhead: 10,
@@ -306,9 +293,9 @@ export const TEAM_MEMBERS: TeamMember[] = [
 ];
 
 export const COMMENTS: JobComment[] = [
-  { id: "c-001", jobId: 1, authorId: "tm-002", authorName: "Amara Osei", body: "QAOA converged at p=3. Trying p=4 to see if we can squeeze another 2% approximation ratio.", createdAt: "45 min ago" },
-  { id: "c-002", jobId: 1, authorId: "tm-001", authorName: "Rocher Botha", body: "Approved hardware run. IBM Heron r2 queue was only 6 minutes.", createdAt: "30 min ago" },
-  { id: "c-003", jobId: 4, authorId: "tm-003", authorName: "Wei Zhang", body: "Grover's found the weak key in 89 iterations vs 2^16 classical brute-force. Clear speedup at this scale.", createdAt: "2 hours ago" },
+  { id: "c-001", jobId: "j-1", authorId: "tm-002", authorName: "Amara Osei", body: "QAOA converged at p=3. Trying p=4 to see if we can squeeze another 2% approximation ratio.", createdAt: minutesAgoIso(45) },
+  { id: "c-002", jobId: "j-1", authorId: "tm-001", authorName: "Rocher Botha", body: "Approved hardware run. IBM Heron r2 queue was only 6 minutes.", createdAt: minutesAgoIso(30) },
+  { id: "c-003", jobId: "j-4", authorId: "tm-003", authorName: "Wei Zhang", body: "Grover's found the weak key in 89 iterations vs 2^16 classical brute-force. Clear speedup at this scale.", createdAt: minutesAgoIso(120) },
 ];
 
 export const FEED_ITEMS: FeedItem[] = [
@@ -330,7 +317,7 @@ export const KEYWORD_ALERTS: KeywordAlert[] = [
 
 export const PROBLEM_BRIEFS: ProblemBrief[] = [
   {
-    id: "pb-001", jobId: 1, workspaceId: "log",
+    id: "pb-001", jobId: "j-1", workspaceId: "log",
     problemStatement: "Optimise 5-truck delivery routes across 40 stops",
     domain: "Logistics", complexityClass: "NP-hard",
     quantumAdvantageLiterature: "conjectured",
@@ -343,7 +330,7 @@ export const PROBLEM_BRIEFS: ProblemBrief[] = [
 
 export const ALGORITHM_SPECS: AlgorithmSpec[] = [
   {
-    id: "as-001", jobId: 1,
+    id: "as-001", jobId: "j-1",
     algorithmFamily: "QAOA",
     quboFormulation: "Minimize: Σ_{(i,j)∈E} w_ij * (1 - z_i*z_j) / 2\nSubject to: vehicle capacity and time-window constraints encoded as penalty terms.",
     hamiltonianDescription: "H_C = Σ_{(i,j)∈E} w_ij * (I - Z_i⊗Z_j) / 2\nH_B = Σ_i X_i",

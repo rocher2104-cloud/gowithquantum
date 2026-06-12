@@ -97,7 +97,7 @@ const useStyles = makeStyles({
 });
 
 const DEFAULT_CONFIG: SimulationConfig = {
-  id: "draft", jobId: 0,
+  id: "draft", jobId: "",
   simulatorType: "statevector", shots: 4096,
   noiseEnabled: false, noiseModel: "none",
   depolarizingRate: 0.001, t1Us: 100, t2Us: 80,
@@ -130,7 +130,7 @@ export function ClassicalSimulation() {
         : undefined;
       const saved = addSimConfig({
         ...config,
-        jobId: jobs[0]?.id ?? 0,
+        jobId: jobs[0]?.id ?? "",
         results: {
           convergenceData: conv,
           approximationRatio: config.noiseEnabled ? 0.76 : 0.89,

@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -35,26 +36,40 @@ import {
   KEYWORD_ALERTS,
   PROBLEM_BRIEFS,
   ALGORITHM_SPECS,
+  STEPS,
 } from "../data/mock";
+import { MockRunStream } from "../protocol/mockRunStream";
+import type { GateAction, GateEvent } from "../protocol/events";
+import { nowIso } from "../lib/time";
 
 export type ColorScheme = "light" | "dark";
 export type Effort = "Quick" | "Standard" | "Exhaustive";
+export type UiMode = "guided" | "expert";
 
 interface AppState {
-  // Existing
+  // Jobs & workspaces
   jobs: Job[];
   workspaces: Workspace[];
   currentWs: string;
   colorScheme: ColorScheme;
   effort: Effort;
+  uiMode: UiMode;
+  userName: string;
+  creditsUsed: number;
   setCurrentWs: (id: string) => void;
   toggleColorScheme: () => void;
   setEffort: (e: Effort) => void;
+  setUiMode: (m: UiMode) => void;
+  setUserName: (n: string) => void;
   addWorkspace: (name: string) => string;
   addFileToCurrent: () => void;
-  createJob: (title: string) => Job;
-  updateJob: (id: number, patch: Partial<Job>) => void;
-  getJob: (id: number) => Job | undefined;
+  createJob: (title: string, domain?: string) => Job;
+  updateJob: (id: string, patch: Partial<Job>) => void;
+  getJob: (id: string) => Job | undefined;
+  // Run engine
+  gateInfo: Record<string, GateEvent>;
+  resolveGate: (jobId: string, action: GateAction) => void;
+  startJob: (jobId: string) => void;
   // Simulation
   simConfigs: SimulationConfig[];
   addSimConfig: (config: Omit<SimulationConfig, "id" | "created">) => SimulationConfig;
@@ -77,7 +92,7 @@ interface AppState {
   updateMemberAccess: (id: string, access: AccessLevel) => void;
   // Comments
   comments: JobComment[];
-  addComment: (jobId: number, authorName: string, body: string) => void;
+  addComment: (jobId: string, authorName: string, body: string) => void;
   // Feed
   feedItems: FeedItem[];
   keywordAlerts: KeywordAlert[];
@@ -95,55 +110,187 @@ interface AppState {
 
 const AppContext = createContext<AppState | null>(null);
 
-let jobSeq = 100;
-let simSeq = 200;
-let hwSeq = 300;
-let reSeq = 400;
-let tmSeq = 500;
-let cmtSeq = 600;
-let fiSeq = 700;
-let kaSeq = 800;
-let pbSeq = 900;
-let asSeq = 1000;
+// IDs are strings in a server-assigned shape so swapping in API-issued ids is
+// a no-op for the UI.
+let idSeq = 0;
+function newId(prefix: string): string {
+  return `${prefix}-${Date.now().toString(36)}${(idSeq++).toString(36)}`;
+}
+
+// ── Persistence ──────────────────────────────────────────────────────────────
+// Everything in state is JSON-serializable — the same constraint an API gives
+// us. Bump the key when the persisted shape changes.
+const STORAGE_KEY = "gwq-state-v2";
+
+interface PersistedState {
+  jobs: Job[];
+  workspaces: Workspace[];
+  currentWs: string;
+  colorScheme: ColorScheme;
+  effort: Effort;
+  uiMode: UiMode;
+  userName: string;
+  creditsUsed: number;
+  simConfigs: SimulationConfig[];
+  hwConfigs: HardwareConfig[];
+  papers: LiteraturePaper[];
+  resourceEstimates: ResourceEstimate[];
+  teamMembers: TeamMember[];
+  comments: JobComment[];
+  feedItems: FeedItem[];
+  keywordAlerts: KeywordAlert[];
+  problemBriefs: ProblemBrief[];
+  algorithmSpecs: AlgorithmSpec[];
+}
+
+function loadPersisted(): Partial<PersistedState> {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as Partial<PersistedState>) : {};
+  } catch {
+    return {};
+  }
+}
+
+const persisted = loadPersisted();
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [jobs, setJobs] = useState<Job[]>(() => INITIAL_JOBS.map((j) => ({ ...j })));
-  const [workspaces, setWorkspaces] = useState<Workspace[]>(() =>
-    WORKSPACES.map((w) => ({ ...w, tags: [...w.tags], files: [...w.files] })),
+  const [jobs, setJobs] = useState<Job[]>(() => persisted.jobs ?? INITIAL_JOBS.map((j) => ({ ...j })));
+  const [workspaces, setWorkspaces] = useState<Workspace[]>(
+    () => persisted.workspaces ?? WORKSPACES.map((w) => ({ ...w, tags: [...w.tags], files: [...w.files] })),
   );
-  const [currentWs, setCurrentWs] = useState("log");
-  const [colorScheme, setColorScheme] = useState<ColorScheme>("light");
-  const [effort, setEffort] = useState<Effort>("Standard");
+  const [currentWs, setCurrentWs] = useState(persisted.currentWs ?? "log");
+  const [colorScheme, setColorScheme] = useState<ColorScheme>(persisted.colorScheme ?? "light");
+  const [effort, setEffort] = useState<Effort>(persisted.effort ?? "Standard");
+  const [uiMode, setUiMode] = useState<UiMode>(persisted.uiMode ?? "guided");
+  const [userName, setUserName] = useState(persisted.userName ?? "Rocher Botha");
+  const [creditsUsed, setCreditsUsed] = useState(persisted.creditsUsed ?? 45.7);
   const toggleColorScheme = useCallback(() => setColorScheme((s) => (s === "light" ? "dark" : "light")), []);
-  const [simConfigs, setSimConfigs] = useState<SimulationConfig[]>(() => [...SIM_CONFIGS]);
-  const [hwConfigs, setHwConfigs] = useState<HardwareConfig[]>(() => [...HW_CONFIGS]);
-  const [papers, setPapers] = useState<LiteraturePaper[]>(() => [...PAPERS]);
-  const [resourceEstimates, setResourceEstimates] = useState<ResourceEstimate[]>(() => [...RESOURCE_ESTIMATES]);
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(() => [...TEAM_MEMBERS]);
-  const [comments, setComments] = useState<JobComment[]>(() => [...COMMENTS]);
-  const [feedItems, setFeedItems] = useState<FeedItem[]>(() => [...FEED_ITEMS]);
-  const [keywordAlerts, setKeywordAlerts] = useState<KeywordAlert[]>(() => [...KEYWORD_ALERTS]);
-  const [problemBriefs, setProblemBriefs] = useState<ProblemBrief[]>(() => [...PROBLEM_BRIEFS]);
-  const [algorithmSpecs, setAlgorithmSpecs] = useState<AlgorithmSpec[]>(() => [...ALGORITHM_SPECS]);
+  const [simConfigs, setSimConfigs] = useState<SimulationConfig[]>(() => persisted.simConfigs ?? [...SIM_CONFIGS]);
+  const [hwConfigs, setHwConfigs] = useState<HardwareConfig[]>(() => persisted.hwConfigs ?? [...HW_CONFIGS]);
+  const [papers, setPapers] = useState<LiteraturePaper[]>(() => persisted.papers ?? [...PAPERS]);
+  const [resourceEstimates, setResourceEstimates] = useState<ResourceEstimate[]>(() => persisted.resourceEstimates ?? [...RESOURCE_ESTIMATES]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(() => persisted.teamMembers ?? [...TEAM_MEMBERS]);
+  const [comments, setComments] = useState<JobComment[]>(() => persisted.comments ?? [...COMMENTS]);
+  const [feedItems, setFeedItems] = useState<FeedItem[]>(() => persisted.feedItems ?? [...FEED_ITEMS]);
+  const [keywordAlerts, setKeywordAlerts] = useState<KeywordAlert[]>(() => persisted.keywordAlerts ?? [...KEYWORD_ALERTS]);
+  const [problemBriefs, setProblemBriefs] = useState<ProblemBrief[]>(() => persisted.problemBriefs ?? [...PROBLEM_BRIEFS]);
+  const [algorithmSpecs, setAlgorithmSpecs] = useState<AlgorithmSpec[]>(() => persisted.algorithmSpecs ?? [...ALGORITHM_SPECS]);
+  const [gateInfo, setGateInfo] = useState<Record<string, GateEvent>>({});
 
   const currentWsRef = useRef(currentWs);
   currentWsRef.current = currentWs;
 
-  // ── Existing methods ─────────────────────────────────────────────────────
-  const updateJob = useCallback((id: number, patch: Partial<Job>) => {
+  // Persist on every change (cheap at this scale; an API layer replaces this).
+  useEffect(() => {
+    const state: PersistedState = {
+      jobs, workspaces, currentWs, colorScheme, effort, uiMode, userName, creditsUsed,
+      simConfigs, hwConfigs, papers, resourceEstimates, teamMembers, comments,
+      feedItems, keywordAlerts, problemBriefs, algorithmSpecs,
+    };
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch {
+      // quota errors are non-fatal in the prototype
+    }
+  }, [jobs, workspaces, currentWs, colorScheme, effort, uiMode, userName, creditsUsed,
+      simConfigs, hwConfigs, papers, resourceEstimates, teamMembers, comments,
+      feedItems, keywordAlerts, problemBriefs, algorithmSpecs]);
+
+  // ── Jobs ────────────────────────────────────────────────────────────────────
+  const updateJob = useCallback((id: string, patch: Partial<Job>) => {
     setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, ...patch } : j)));
   }, []);
 
-  const getJob = useCallback((id: number) => jobs.find((j) => j.id === id), [jobs]);
+  const getJob = useCallback((id: string) => jobs.find((j) => j.id === id), [jobs]);
 
-  const createJob = useCallback((title: string): Job => {
-    const job: Job = { id: jobSeq++, title, ws: currentWsRef.current, step: 0, status: "running", created: "just now" };
+  const createJob = useCallback((title: string, domain?: string): Job => {
+    const job: Job = {
+      id: newId("j"), title, ws: currentWsRef.current,
+      step: 0, status: "running", createdAt: nowIso(), domain,
+    };
     setJobs((prev) => [job, ...prev]);
     return job;
   }, []);
 
+  // ── Run engine ──────────────────────────────────────────────────────────────
+  // Runs progress at the store level — they keep going whether or not anyone
+  // is looking at the run page, exactly like a server-side run will.
+  const streamsRef = useRef(new Map<string, MockRunStream>());
+
+  const attachStream = useCallback((job: Job) => {
+    if (streamsRef.current.has(job.id)) return;
+    const stream = new MockRunStream(job.title, job.step, job.domain ?? "");
+    streamsRef.current.set(job.id, stream);
+    const id = job.id;
+    stream.subscribe((e) => {
+      switch (e.type) {
+        case "step_start":
+          setJobs((prev) => prev.map((j) =>
+            j.id === id ? { ...j, step: e.step, status: "running", notes: { ...j.notes, [e.step]: [] } } : j,
+          ));
+          break;
+        case "step_note":
+          setJobs((prev) => prev.map((j) =>
+            j.id === id
+              ? { ...j, notes: { ...j.notes, [e.step]: [...(j.notes?.[e.step] ?? []), e.note] } }
+              : j,
+          ));
+          break;
+        case "gate":
+          setGateInfo((prev) => ({ ...prev, [id]: e }));
+          setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, step: e.step, status: "needs" } : j)));
+          break;
+        case "report":
+          setJobs((prev) => prev.map((j) =>
+            j.id === id
+              ? { ...j, status: "done", step: STEPS.length, result: e.result, report: e.markdown }
+              : j,
+          ));
+          setCreditsUsed((c) => Math.round((c + 7.5) * 100) / 100);
+          stream.dispose();
+          streamsRef.current.delete(id);
+          break;
+        default:
+          break;
+      }
+    });
+    stream.start();
+  }, []);
+
+  // Any running job without a live stream gets one — this also resumes runs
+  // that were mid-flight when the page reloaded.
+  useEffect(() => {
+    jobs.forEach((j) => {
+      if (j.status === "running" && !streamsRef.current.has(j.id)) attachStream(j);
+    });
+  }, [jobs, attachStream]);
+
+  const resolveGate = useCallback((jobId: string, action: GateAction) => {
+    const stream = streamsRef.current.get(jobId);
+    if (action === "hold") {
+      stream?.dispose();
+      streamsRef.current.delete(jobId);
+      updateJob(jobId, { status: "queued" });
+      return;
+    }
+    if (stream) {
+      stream.resolveGate(action);
+    } else {
+      // No live stream (e.g. a gate restored from persistence) — advance past
+      // the gate and let the watcher attach a fresh stream.
+      setJobs((prev) => prev.map((j) =>
+        j.id === jobId ? { ...j, step: j.step + 1, status: "running" } : j,
+      ));
+    }
+  }, [updateJob]);
+
+  const startJob = useCallback((jobId: string) => {
+    updateJob(jobId, { status: "running" });
+  }, [updateJob]);
+
   const addWorkspace = useCallback((name: string): string => {
-    const id = "ws" + Math.floor(performance.now());
+    const id = newId("ws");
     const ws: Workspace = { id, name: name.trim() || "Untitled workspace", tags: [], files: [] };
     setWorkspaces((prev) => [...prev, ws]);
     setCurrentWs(id);
@@ -167,7 +314,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // ── Simulation ────────────────────────────────────────────────────────────
   const addSimConfig = useCallback((config: Omit<SimulationConfig, "id" | "created">): SimulationConfig => {
-    const full: SimulationConfig = { ...config, id: `sim-${simSeq++}`, created: "just now" };
+    const full: SimulationConfig = { ...config, id: newId("sim"), created: nowIso() };
     setSimConfigs((prev) => [full, ...prev]);
     return full;
   }, []);
@@ -178,7 +325,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // ── Hardware ──────────────────────────────────────────────────────────────
   const addHwConfig = useCallback((config: Omit<HardwareConfig, "id">): HardwareConfig => {
-    const full: HardwareConfig = { ...config, id: `hw-${hwSeq++}` };
+    const full: HardwareConfig = { ...config, id: newId("hw") };
     setHwConfigs((prev) => [full, ...prev]);
     return full;
   }, []);
@@ -189,7 +336,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const approveHwConfig = useCallback((id: string) => {
     setHwConfigs((prev) =>
-      prev.map((c) => c.id === id ? { ...c, hitlApproved: true, approvedAt: "just now", status: "queued" } : c)
+      prev.map((c) => c.id === id ? { ...c, hitlApproved: true, approvedAt: nowIso(), status: "queued" } : c)
     );
   }, []);
 
@@ -204,14 +351,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // ── Resource Estimates ────────────────────────────────────────────────────
   const addResourceEstimate = useCallback((est: Omit<ResourceEstimate, "id" | "created">): ResourceEstimate => {
-    const full: ResourceEstimate = { ...est, id: `re-${reSeq++}`, created: "just now" };
+    const full: ResourceEstimate = { ...est, id: newId("re"), created: nowIso() };
     setResourceEstimates((prev) => [full, ...prev]);
     return full;
   }, []);
 
   // ── Team ──────────────────────────────────────────────────────────────────
   const addTeamMember = useCallback((m: Omit<TeamMember, "id" | "joinedAt">) => {
-    const full: TeamMember = { ...m, id: `tm-${tmSeq++}`, joinedAt: "just now" };
+    const full: TeamMember = { ...m, id: newId("tm"), joinedAt: nowIso() };
     setTeamMembers((prev) => [...prev, full]);
   }, []);
 
@@ -220,10 +367,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // ── Comments ──────────────────────────────────────────────────────────────
-  const addComment = useCallback((jobId: number, authorName: string, body: string) => {
+  const addComment = useCallback((jobId: string, authorName: string, body: string) => {
     const comment: JobComment = {
-      id: `c-${cmtSeq++}`, jobId, authorId: "current-user",
-      authorName, body, createdAt: "just now",
+      id: newId("c"), jobId, authorId: "current-user",
+      authorName, body, createdAt: nowIso(),
     };
     setComments((prev) => [...prev, comment]);
   }, []);
@@ -235,7 +382,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const addKeywordAlert = useCallback((keyword: string) => {
     if (!keyword.trim()) return;
-    const alert: KeywordAlert = { id: `ka-${kaSeq++}`, keyword: keyword.trim(), active: true, matchCount: 0 };
+    const alert: KeywordAlert = { id: newId("ka"), keyword: keyword.trim(), active: true, matchCount: 0 };
     setKeywordAlerts((prev) => [...prev, alert]);
   }, []);
 
@@ -249,7 +396,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // ── Problem Briefs ────────────────────────────────────────────────────────
   const upsertProblemBrief = useCallback((brief: Omit<ProblemBrief, "id" | "created">): ProblemBrief => {
-    const full: ProblemBrief = { ...brief, id: `pb-${pbSeq++}`, created: "just now" };
+    const full: ProblemBrief = { ...brief, id: newId("pb"), created: nowIso() };
     setProblemBriefs((prev) => {
       const existing = prev.findIndex((b) => b.jobId === brief.jobId);
       if (existing >= 0) {
@@ -264,7 +411,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // ── Algorithm Specs ───────────────────────────────────────────────────────
   const upsertAlgorithmSpec = useCallback((spec: Omit<AlgorithmSpec, "id" | "created">): AlgorithmSpec => {
-    const full: AlgorithmSpec = { ...spec, id: `as-${asSeq++}`, created: "just now" };
+    const full: AlgorithmSpec = { ...spec, id: newId("as"), created: nowIso() };
     setAlgorithmSpecs((prev) => {
       const existing = prev.findIndex((s) => s.jobId === spec.jobId);
       if (existing >= 0) {
@@ -279,9 +426,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<AppState>(
     () => ({
-      jobs, workspaces, currentWs, colorScheme, effort,
-      setCurrentWs, toggleColorScheme, setEffort,
+      jobs, workspaces, currentWs, colorScheme, effort, uiMode, userName, creditsUsed,
+      setCurrentWs, toggleColorScheme, setEffort, setUiMode, setUserName,
       addWorkspace, addFileToCurrent, createJob, updateJob, getJob,
+      gateInfo, resolveGate, startJob,
       simConfigs, addSimConfig, updateSimConfig,
       hwConfigs, addHwConfig, updateHwConfig, approveHwConfig,
       papers, addPaper, toggleBookmark,
@@ -293,8 +441,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       algorithmSpecs, upsertAlgorithmSpec,
     }),
     [
-      jobs, workspaces, currentWs, colorScheme, effort,
+      jobs, workspaces, currentWs, colorScheme, effort, uiMode, userName, creditsUsed,
       addWorkspace, addFileToCurrent, createJob, updateJob, getJob,
+      gateInfo, resolveGate, startJob,
       simConfigs, addSimConfig, updateSimConfig,
       hwConfigs, addHwConfig, updateHwConfig, approveHwConfig,
       papers, addPaper, toggleBookmark,

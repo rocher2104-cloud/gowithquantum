@@ -20,7 +20,7 @@ import {
   WeatherMoonRegular,
   AddRegular,
 } from "@fluentui/react-icons";
-import { NAV, railForPath, type RailKey } from "./nav";
+import { getNav, railForPath, type RailKey } from "./nav";
 import { useApp } from "../../store/AppStore";
 import { KetLogo } from "./KetLogo";
 import { NewWorkspaceDialog } from "./NewWorkspaceDialog";
@@ -278,8 +278,9 @@ export function SideNav() {
   const s = useStyles();
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const { jobs, workspaces, currentWs, setCurrentWs, toggleColorScheme, colorScheme } = useApp();
+  const { jobs, workspaces, currentWs, setCurrentWs, toggleColorScheme, colorScheme, uiMode, setUiMode, userName } = useApp();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const NAV = getNav(uiMode);
 
   // Which panel section to display — follows the current path but can be
   // overridden by clicking a rail button without forcing a page navigation.
@@ -362,7 +363,7 @@ export function SideNav() {
         <Menu>
           <MenuTrigger disableButtonEnhancement>
             <Avatar
-              name="Rocher Botha"
+              name={userName}
               size={32}
               color="brand"
               style={{ cursor: "pointer", marginTop: "4px" }}
@@ -373,6 +374,10 @@ export function SideNav() {
               <MenuItem onClick={() => navigate("/settings")}>Profile</MenuItem>
               <MenuItem onClick={() => navigate("/settings")}>Settings</MenuItem>
               <MenuItem onClick={() => navigate("/billing")}>Billing</MenuItem>
+              <MenuDivider />
+              <MenuItem onClick={() => setUiMode(uiMode === "guided" ? "expert" : "guided")}>
+                {uiMode === "guided" ? "Switch to expert mode" : "Switch to guided mode"}
+              </MenuItem>
               <MenuDivider />
               <MenuItem>Sign out</MenuItem>
             </MenuList>

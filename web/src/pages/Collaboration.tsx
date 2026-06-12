@@ -8,6 +8,7 @@ import {
 import { PersonAddRegular, DismissRegular } from "@fluentui/react-icons";
 import { PageHeader } from "../components/shared/PageHeader";
 import { useApp } from "../store/AppStore";
+import { timeAgo } from "../lib/time";
 import type { AccessLevel, TeamRole } from "../data/models";
 import { TEAM_MEMBERS, COMMENTS } from "../data/mock";
 
@@ -148,14 +149,14 @@ export function Collaboration() {
 
   const handleAddComment = () => {
     if (!newComment.trim()) return;
-    addComment(1, "You", newComment);
+    addComment("j-1", "You", newComment);
     setComments((prev) => [...prev, {
       id: `c-local-${Date.now()}`,
-      jobId: 1,
+      jobId: "j-1",
       authorId: "current-user",
       authorName: "You",
       body: newComment,
-      createdAt: "just now",
+      createdAt: new Date().toISOString(),
     }]);
     setNewComment("");
   };
@@ -301,7 +302,7 @@ export function Collaboration() {
               <div className={s.commentBody}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                   <Text size={200} weight="semibold">{c.authorName}</Text>
-                  <Text size={100} style={{ color: tokens.colorNeutralForeground3, fontFamily: tokens.fontFamilyMonospace }}>{c.createdAt}</Text>
+                  <Text size={100} style={{ color: tokens.colorNeutralForeground3, fontFamily: tokens.fontFamilyMonospace }}>{timeAgo(c.createdAt)}</Text>
                 </div>
                 <Text size={200}>{c.body}</Text>
               </div>

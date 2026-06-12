@@ -1,0 +1,90 @@
+{
+  "comment": "Canonical 9-step run plan. Single source of truth shared by the web app (web/src/data/mock.ts) and the Python agent (gowithquantum/agent.py). Edit here, nowhere else.",
+  "steps": [
+    {
+      "t": "Understand your problem",
+      "owner": "You",
+      "human": true,
+      "hint": "Capturing your goal and turning it into something we can compute.",
+      "notes": [
+        "Read your description and the workspace files.",
+        "Identified the problem shape and what a good answer looks like."
+      ]
+    },
+    {
+      "t": "Find proven approaches",
+      "owner": "AI",
+      "hint": "Searching known algorithm families for a fit.",
+      "notes": [
+        "Matched candidate approaches from the algorithm library and literature.",
+        "Ranked them by fit for this problem shape."
+      ]
+    },
+    {
+      "t": "Draft candidate solutions",
+      "owner": "AI",
+      "hint": "Generating a few candidate quantum circuits to compare.",
+      "notes": [
+        "Drafted circuit variants at small scale.",
+        "Prepared them for a quick simulator test."
+      ]
+    },
+    {
+      "t": "Quick test at small scale",
+      "owner": "Simulator",
+      "hint": "Trying tiny versions safely before using real hardware.",
+      "notes": [
+        "Ran all candidates on a simulator.",
+        "Kept the variant that returned the best answer."
+      ]
+    },
+    {
+      "t": "Streamline the solution",
+      "owner": "Compiler",
+      "hint": "Making the circuit as efficient as possible to run.",
+      "notes": [
+        "Reduced the circuit depth significantly.",
+        "Mapped it onto a real hardware layout."
+      ]
+    },
+    {
+      "t": "Run the real experiment",
+      "owner": "Hardware",
+      "hint": "Executing the experiment on an actual quantum computer.",
+      "gate": "hardware",
+      "notes": [
+        "Submitted to the hardware queue.",
+        "Collected results across all runs."
+      ]
+    },
+    {
+      "t": "Make sense of the results",
+      "owner": "AI",
+      "hint": "Reading the measurements and drawing conclusions.",
+      "notes": [
+        "The most common result points to one clear answer.",
+        "Cross-checked it against the simulator's answer."
+      ]
+    },
+    {
+      "t": "Refine together",
+      "owner": "You + AI",
+      "human": true,
+      "hint": "Decide whether to improve further or accept the result.",
+      "gate": "improve",
+      "notes": [
+        "A deeper circuit might squeeze out a little more.",
+        "Your call: keep refining, or accept what we have."
+      ]
+    },
+    {
+      "t": "Check for a real advantage",
+      "owner": "Research",
+      "hint": "Proving whether quantum actually beats the classical approach here.",
+      "notes": [
+        "Compared against the best classical solver.",
+        "Documented where (and if) quantum wins."
+      ]
+    }
+  ]
+}

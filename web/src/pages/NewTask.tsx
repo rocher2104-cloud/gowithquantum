@@ -80,15 +80,17 @@ export function NewTask() {
 
   const filtered = domain === "All" ? EXAMPLES : EXAMPLES.filter((e) => e.dom === domain.toLowerCase() || e.dom === "all");
 
+  const domainForFit = domain === "All" ? "" : domain.toLowerCase();
+
   const submit = () => {
     const v = text.trim();
     if (!v) return;
-    const job = createJob(v);
+    const job = createJob(v, domainForFit);
     navigate(`/run/${job.id}`);
   };
 
-  const domainForFit = domain === "All" ? "" : domain.toLowerCase();
   const mine = jobs.filter((j) => j.ws === currentWs).slice(0, 4);
+  const needs = jobs.filter((j) => j.status === "needs");
 
   return (
     <>
@@ -97,6 +99,15 @@ export function NewTask() {
         title="What would you like to solve?"
         sub="Describe your problem in plain words. We'll find an approach, run it on quantum hardware, and explain what we found — checking in with you along the way."
       />
+
+      {needs.length > 0 && (
+        <>
+          <SectionRow title="Needs your review" />
+          <div style={{ marginBottom: "20px" }}>
+            <JobList jobs={needs} />
+          </div>
+        </>
+      )}
 
       <div className={s.domainRow}>
         {DOMAINS.map((d) => (
