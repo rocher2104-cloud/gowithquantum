@@ -136,7 +136,7 @@ export function HardwareExecution() {
 
   const handleApprove = () => {
     const config = addHwConfig({
-      jobId: jobs[0]?.id ?? 0,
+      jobId: jobs[0]?.id ?? "",
       providerId: selectedProvider,
       backend: provider.backends.split(",")[0].trim(),
       shots, optimizationLevel: optLevel,

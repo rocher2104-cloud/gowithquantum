@@ -1,64 +1,27 @@
-import { useCallback, useEffect, useRef } from "react";
-import { STEPS } from "../data/mock";
+import { useCallback } from "react";
 import { useApp } from "./AppStore";
-
-const STEP_MS = 1600; // dwell per automated step
+import type { GateAction } from "../protocol/events";
 
 /**
- * Drives a job's step progression over time, pausing at human-in-the-loop
- * gates. Ported from the old prototype's `animateRun` / `handleGate`.
+ * Thin per-job handle onto the store-level run engine. Runs progress globally
+ * (see AppStore) — this hook only exposes gate resolution and start, matching
+ * what a backend client will look like.
  */
-export function useRunSimulation(jobId: number | undefined) {
-  const { getJob, updateJob } = useApp();
-  const job = jobId != null ? getJob(jobId) : undefined;
-  const timer = useRef<number | null>(null);
+export function useRunSimulation(jobId: string | undefined) {
+  const { resolveGate: storeResolveGate, startJob } = useApp();
 
-  const status = job?.status;
-  const step = job?.step;
-
-  useEffect(() => {
-    if (jobId == null || status !== "running" || step == null) return;
-
-    // Reached the end -> mark done.
-    if (step >= STEPS.length) {
-      updateJob(jobId, { status: "done", step: STEPS.length });
-      return;
-    }
-
-    // Current step is a human gate -> pause and wait for the user.
-    if (STEPS[step].gate) {
-      updateJob(jobId, { status: "needs" });
-      return;
-    }
-
-    // Otherwise advance after a dwell.
-    timer.current = window.setTimeout(() => {
-      updateJob(jobId, { step: step + 1 });
-    }, STEP_MS);
-
-    return () => {
-      if (timer.current) window.clearTimeout(timer.current);
-    };
-  }, [jobId, status, step, updateJob]);
-
-  /** User approved a gate (or chose an alternative) — resume past it. */
   const resolveGate = useCallback(
-    (action: "approve" | "sim" | "iterate" | "accept" | "hold") => {
-      if (jobId == null || step == null) return;
-      if (action === "hold") {
-        updateJob(jobId, { status: "queued" });
-        return;
-      }
-      updateJob(jobId, { step: step + 1, status: "running" });
+    (action: GateAction) => {
+      if (jobId == null) return;
+      storeResolveGate(jobId, action);
     },
-    [jobId, step, updateJob],
+    [jobId, storeResolveGate],
   );
 
-  /** Start a queued job running. */
   const start = useCallback(() => {
     if (jobId == null) return;
-    updateJob(jobId, { status: "running" });
-  }, [jobId, updateJob]);
+    startJob(jobId);
+  }, [jobId, startJob]);
 
   return { resolveGate, start };
 }

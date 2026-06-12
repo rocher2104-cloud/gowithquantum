@@ -80,8 +80,8 @@ function MobileNav() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const tabs = [
-    { icon: <GridRegular fontSize={20} />, label: "Home", path: "/" },
-    { icon: <AddRegular fontSize={20} />, label: "New", path: "/solve" },
+    { icon: <AddRegular fontSize={20} />, label: "Solve", path: "/" },
+    { icon: <GridRegular fontSize={20} />, label: "Activity", path: "/overview" },
     { icon: <FlashRegular fontSize={20} />, label: "Queue", path: "/queue" },
   ];
   return (
@@ -108,7 +108,8 @@ export function App() {
       <main className={`${s.content} gwq-canvas`}>
         <div className={s.inner}>
           <Routes>
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/" element={<NewTask />} />
+            <Route path="/overview" element={<Dashboard />} />
             <Route path="/solve" element={<NewTask />} />
             <Route path="/queue" element={<Queue />} />
             <Route path="/files" element={<Files />} />

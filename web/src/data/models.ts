@@ -14,12 +14,16 @@ export interface Workspace {
 }
 
 export interface Job {
-  id: number;
+  id: string; // server-assigned shape, e.g. "j-104"
   title: string;
   ws: string; // workspace id
-  step: number; // 0..9
+  step: number; // 0..STEPS.length
   status: JobStatus;
-  created: string;
+  createdAt: string; // ISO-8601
+  domain?: string; // fit-triage domain hint chosen at intake
+  /** Live notes per step, accumulated from step_note events. */
+  notes?: Record<number, string[]>;
+  result?: ResultData; // attached by the `report` event when the run finishes
   report?: string; // markdown, when produced
 }
 
@@ -112,7 +116,7 @@ export interface SimulationResult {
 
 export interface SimulationConfig {
   id: string;
-  jobId: number;
+  jobId: string;
   simulatorType: SimulatorType;
   shots: number;
   noiseEnabled: boolean;
@@ -135,7 +139,7 @@ export type OptimizationLevel = 0 | 1 | 2 | 3;
 
 export interface HardwareConfig {
   id: string;
-  jobId: number;
+  jobId: string;
   providerId: string;
   backend: string;
   shots: number;
@@ -175,7 +179,7 @@ export type ErrorCorrectionCode = "surface" | "color" | "honeycomb";
 
 export interface ResourceEstimate {
   id: string;
-  jobId: number;
+  jobId: string;
   algorithmName: string;
   logicalQubits: number;
   logicalErrorRate: number;
@@ -198,7 +202,7 @@ export type QuantumPriority = "speed" | "accuracy" | "cost";
 
 export interface ProblemBrief {
   id: string;
-  jobId: number;
+  jobId: string;
   workspaceId: string;
   problemStatement: string;
   domain: string;
@@ -220,7 +224,7 @@ export type AlgorithmFamily = "QAOA" | "VQE" | "HHL" | "Grover" | "Annealing" | 
 
 export interface AlgorithmSpec {
   id: string;
-  jobId: number;
+  jobId: string;
   algorithmFamily: AlgorithmFamily;
   quboFormulation?: string;
   hamiltonianDescription?: string;
@@ -255,7 +259,7 @@ export interface TeamMember {
 
 export interface JobComment {
   id: string;
-  jobId: number;
+  jobId: string;
   authorId: string;
   authorName: string;
   body: string;

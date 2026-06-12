@@ -1,5 +1,7 @@
-import { Button, Card, Input, Field, Switch, makeStyles, tokens, Divider } from "@fluentui/react-components";
+import { useState } from "react";
+import { Button, Card, Input, Field, Switch, makeStyles, tokens } from "@fluentui/react-components";
 import { PageHeader, SectionRow } from "../components/shared/PageHeader";
+import { useApp } from "../store/AppStore";
 
 const useStyles = makeStyles({
   section: { marginBottom: "28px" },
@@ -24,22 +26,42 @@ const useStyles = makeStyles({
 
 export function Settings() {
   const s = useStyles();
+  const { userName, setUserName, uiMode, setUiMode } = useApp();
+  const [nameDraft, setNameDraft] = useState(userName);
   return (
     <>
-      <PageHeader kicker="Account" title="Settings" sub="Profile, API keys, provider defaults, and notification preferences." />
+      <PageHeader kicker="Account" title="Settings" sub="Profile, interface mode, API keys, provider defaults, and notification preferences." />
 
       <SectionRow title="Profile" />
       <Card style={{ padding: "20px", marginBottom: 28 }}>
         <div className={s.profileGrid}>
-          <Field label="Name"><Input defaultValue="Rocher Botha" /></Field>
+          <Field label="Name"><Input value={nameDraft} onChange={(_, d) => setNameDraft(d.value)} /></Field>
           <Field label="Email"><Input defaultValue="rocher@gowithquantum.com" /></Field>
           <Field label="Organisation"><Input defaultValue="Go With Quantum" /></Field>
           <Field label="Role"><Input defaultValue="Founder" /></Field>
         </div>
         <div style={{ marginTop: 16 }}>
-          <Button appearance="primary">Save changes</Button>
+          <Button appearance="primary" onClick={() => setUserName(nameDraft.trim() || userName)}>Save changes</Button>
         </div>
       </Card>
+
+      <SectionRow title="Interface" />
+      <div style={{ marginBottom: 28 }}>
+        <div className={s.row}>
+          <div>
+            <div className={s.rowLabel}>Expert mode</div>
+            <div className={s.rowSub}>
+              Show the full research workbench in the sidebar (literature review, algorithm design,
+              resource estimation…). In guided mode the agent does these steps for you and you reach
+              them from a run's "Behind the scenes" panel.
+            </div>
+          </div>
+          <Switch
+            checked={uiMode === "expert"}
+            onChange={(_, d) => setUiMode(d.checked ? "expert" : "guided")}
+          />
+        </div>
+      </div>
 
       <SectionRow title="API keys" />
       <div style={{ marginBottom: 28 }}>

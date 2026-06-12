@@ -1,31 +1,9 @@
-import { useState } from "react";
-import { Button, makeStyles, tokens } from "@fluentui/react-components";
-import { ChatRegular } from "@fluentui/react-icons";
+import { useEffect, useRef, useState } from "react";
+import { makeStyles, tokens } from "@fluentui/react-components";
+import { ChatRegular, SendRegular } from "@fluentui/react-icons";
+import type { ResultData } from "../../data/models";
 import { accents } from "../../theme/brand";
-
-interface QA {
-  q: string;
-  a: string;
-}
-
-const QAS: QA[] = [
-  {
-    q: "What does 18% distance savings mean for my business?",
-    a: "For a 5-truck fleet running 40 stops per day, an 18% reduction in total distance typically translates to 10–15% lower fuel costs and 1–2 fewer driving hours per day per truck. At average fleet operating costs, that's roughly $15,000–$25,000 in annual savings — and the routes are more predictable, which makes driver scheduling easier.",
-  },
-  {
-    q: "Why did you use quantum computing here?",
-    a: "Route optimisation is a combinatorial problem — as the number of stops grows, the number of possible routes explodes exponentially. Classical solvers handle 40 stops fine, but struggle above ~120. Quantum algorithms like QAOA explore many solutions simultaneously, so they stay practical at scales where classical methods stall. We ran quantum here to benchmark how your problem performs, and to prepare you for when your network grows.",
-  },
-  {
-    q: "Is there a real quantum advantage in this result?",
-    a: "Not yet at 40 stops — classical OR-Tools matched the quantum result at a fraction of the cost. That's the honest answer, and we always report it. The value right now is: (1) you have a baseline, (2) you've validated the workflow, and (3) when your network crosses ~120 nodes, you can re-run and see the crossover happen. The advantage is real — it just kicks in at larger scale.",
-  },
-  {
-    q: "What should I do next?",
-    a: "Keep this route plan as your working baseline and compare it against your current schedule. If you see the network growing — more stops, more trucks, tighter time windows — flag it and we'll re-run the quantum experiment. The scaling chart in the Technical view shows exactly when the quantum approach becomes the faster option.",
-  },
-];
+import { askAboutRun, SUGGESTED_QUESTIONS, type RunMessage } from "../../protocol/qa";
 
 const useStyles = makeStyles({
   root: {
@@ -41,7 +19,20 @@ const useStyles = makeStyles({
     fontSize: "11px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase",
     color: tokens.colorNeutralForeground3,
   },
-  qList: { padding: "12px 16px", display: "flex", flexDirection: "column", gap: "6px" },
+  thread: { padding: "14px 16px", display: "flex", flexDirection: "column", gap: "10px", maxHeight: "360px", overflowY: "auto" },
+  msgUser: {
+    alignSelf: "flex-end", maxWidth: "85%",
+    background: tokens.colorBrandBackground2, color: tokens.colorNeutralForeground1,
+    borderRadius: "14px 14px 4px 14px", padding: "9px 13px",
+    fontSize: "13.5px", lineHeight: 1.55,
+  },
+  msgAgent: {
+    alignSelf: "flex-start", maxWidth: "90%",
+    background: tokens.colorNeutralBackground2,
+    borderRadius: "14px 14px 14px 4px", padding: "9px 13px",
+    fontSize: "13.5px", lineHeight: 1.6, color: tokens.colorNeutralForeground1,
+  },
+  suggestions: { display: "flex", flexDirection: "column", gap: "6px", padding: "12px 16px" },
   qBtn: {
     display: "flex", alignItems: "flex-start", gap: "8px",
     padding: "10px 12px", borderRadius: tokens.borderRadiusMedium,
@@ -50,19 +41,61 @@ const useStyles = makeStyles({
     fontFamily: tokens.fontFamilyBase, fontWeight: 500,
     ":hover": { background: tokens.colorNeutralBackground2, borderTopColor: tokens.colorNeutralStroke1, borderRightColor: tokens.colorNeutralStroke1, borderBottomColor: tokens.colorNeutralStroke1, borderLeftColor: tokens.colorNeutralStroke1 },
   },
-  qBtnActive: { background: accents.infoBg, borderTopColor: accents.infoBorder, borderRightColor: accents.infoBorder, borderBottomColor: accents.infoBorder, borderLeftColor: accents.infoBorder, color: tokens.colorNeutralForeground1 },
-  ans: {
-    padding: "12px 16px 16px",
-    borderTop: `1px solid ${tokens.colorNeutralStroke2}`,
-    fontSize: "14px", color: tokens.colorNeutralForeground2, lineHeight: 1.65,
+  icon: { flexShrink: 0, marginTop: "1px", color: accents.quantum },
+  inputRow: {
+    display: "flex", alignItems: "center", gap: "8px",
+    padding: "10px 12px", borderTop: `1px solid ${tokens.colorNeutralStroke2}`,
     background: tokens.colorNeutralBackground2,
   },
-  icon: { flexShrink: 0, marginTop: "1px", color: accents.quantum },
+  input: {
+    flex: 1, border: `1px solid ${tokens.colorNeutralStroke2}`, borderRadius: tokens.borderRadiusMedium,
+    background: tokens.colorNeutralBackground1, color: tokens.colorNeutralForeground1,
+    fontFamily: tokens.fontFamilyBase, fontSize: "14px", padding: "9px 12px", outline: "none",
+    ":focus": { borderTopColor: tokens.colorBrandStroke1, borderRightColor: tokens.colorBrandStroke1, borderBottomColor: tokens.colorBrandStroke1, borderLeftColor: tokens.colorBrandStroke1 },
+  },
+  sendBtn: {
+    width: "36px", height: "36px", borderRadius: tokens.borderRadiusMedium,
+    border: 0, background: tokens.colorBrandBackground, color: "#fff",
+    display: "grid", placeItems: "center", cursor: "pointer", flexShrink: 0,
+    ":hover": { background: tokens.colorBrandBackgroundHover },
+    ":disabled": { opacity: 0.35, cursor: "default" },
+  },
 });
 
-export function ExplainPanel() {
+/** Conversational panel scoped to one run. The contract is question in →
+ * streamed answer out (protocol/qa.ts), so wiring the live agent in later is
+ * a transport swap, not a UI change. */
+export function ExplainPanel({ result }: { result: ResultData }) {
   const s = useStyles();
-  const [active, setActive] = useState<number | null>(null);
+  const [messages, setMessages] = useState<RunMessage[]>([]);
+  const [draft, setDraft] = useState("");
+  const [streaming, setStreaming] = useState(false);
+  const threadRef = useRef<HTMLDivElement>(null);
+  const cancelRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => () => cancelRef.current?.(), []);
+  useEffect(() => {
+    threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight });
+  }, [messages]);
+
+  const ask = (question: string) => {
+    const q = question.trim();
+    if (!q || streaming) return;
+    setDraft("");
+    setStreaming(true);
+    setMessages((prev) => [...prev, { role: "user", text: q }, { role: "agent", text: "…" }]);
+    cancelRef.current = askAboutRun(
+      result,
+      q,
+      (partial) =>
+        setMessages((prev) => {
+          const next = [...prev];
+          next[next.length - 1] = { role: "agent", text: partial };
+          return next;
+        }),
+      () => setStreaming(false),
+    );
+  };
 
   return (
     <div className={s.root}>
@@ -70,21 +103,38 @@ export function ExplainPanel() {
         <ChatRegular fontSize={16} />
         Ask about this result
       </div>
-      <div className={s.qList}>
-        {QAS.map((qa, i) => (
-          <button
-            key={i}
-            className={`${s.qBtn} ${active === i ? s.qBtnActive : ""}`}
-            onClick={() => setActive(active === i ? null : i)}
-          >
-            <ChatRegular fontSize={16} className={s.icon} />
-            {qa.q}
-          </button>
-        ))}
-      </div>
-      {active != null && (
-        <div className={s.ans}>{QAS[active].a}</div>
+
+      {messages.length > 0 && (
+        <div className={s.thread} ref={threadRef}>
+          {messages.map((m, i) => (
+            <div key={i} className={m.role === "user" ? s.msgUser : s.msgAgent}>{m.text}</div>
+          ))}
+        </div>
       )}
+
+      {messages.length === 0 && (
+        <div className={s.suggestions}>
+          {SUGGESTED_QUESTIONS.map((q) => (
+            <button key={q} className={s.qBtn} onClick={() => ask(q)}>
+              <ChatRegular fontSize={16} className={s.icon} />
+              {q}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className={s.inputRow}>
+        <input
+          className={s.input}
+          placeholder="Ask anything about this result…"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") ask(draft); }}
+        />
+        <button className={s.sendBtn} disabled={!draft.trim() || streaming} onClick={() => ask(draft)}>
+          <SendRegular fontSize={16} />
+        </button>
+      </div>
     </div>
   );
 }

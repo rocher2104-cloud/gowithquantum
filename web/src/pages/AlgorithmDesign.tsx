@@ -142,7 +142,7 @@ export function AlgorithmDesign() {
   const s = useStyles();
   const navigate = useNavigate();
   const { algorithmSpecs, upsertAlgorithmSpec, currentWs, jobs } = useApp();
-  const existing = algorithmSpecs.find((a) => a.jobId === (jobs[0]?.id ?? 0));
+  const existing = algorithmSpecs.find((a) => a.jobId === (jobs[0]?.id ?? ""));
 
   const [family, setFamily] = useState<AlgorithmFamily>(existing?.algorithmFamily ?? "QAOA");
   const [ansatz, setAnsatz] = useState<AnsatzType>(existing?.ansatzType ?? "EfficientSU2");
@@ -165,7 +165,7 @@ export function AlgorithmDesign() {
 
   const save = () => {
     upsertAlgorithmSpec({
-      jobId: jobs[0]?.id ?? 0,
+      jobId: jobs[0]?.id ?? "",
       algorithmFamily: family,
       quboFormulation: quboText,
       hamiltonianDescription: hamiltonianText,

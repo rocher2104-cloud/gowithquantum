@@ -12,6 +12,8 @@ import { PageHeader, SectionRow } from "../components/shared/PageHeader";
 import { JobList } from "../components/shared/JobCard";
 import { EmptyState } from "../components/shared/EmptyState";
 import { StatusBadge } from "../components/shared/StatusBadge";
+import { STEPS } from "../data/mock";
+import { timeAgo } from "../lib/time";
 import { accents } from "../theme/brand";
 
 const useStyles = makeStyles({
@@ -157,24 +159,25 @@ function greeting() {
 export function Dashboard() {
   const s = useStyles();
   const navigate = useNavigate();
-  const { jobs, workspaces } = useApp();
+  const { jobs, workspaces, userName, creditsUsed } = useApp();
 
   const running = jobs.filter((j) => j.status === "running");
   const needs = jobs.filter((j) => j.status === "needs");
   const done = jobs.filter((j) => j.status === "done");
   const recent = jobs.slice(0, 6);
+  const firstName = userName.trim().split(/\s+/)[0] || "there";
 
   const STATS = [
     { label: "Active jobs",      value: running.length, border: STAT_BORDERS[0], onClick: undefined },
     { label: "Awaiting review",  value: needs.length,   border: STAT_BORDERS[1], onClick: () => navigate("/queue") },
     { label: "Completed",        value: done.length,    border: STAT_BORDERS[2], onClick: undefined },
-    { label: "Credits used",     value: "$45.70",       border: STAT_BORDERS[3], onClick: () => navigate("/billing") },
+    { label: "Credits used",     value: `$${creditsUsed.toFixed(2)}`, border: STAT_BORDERS[3], onClick: () => navigate("/billing") },
   ];
 
   return (
     <>
       <PageHeader
-        title={`${greeting()}, Rocher.`}
+        title={`${greeting()}, ${firstName}.`}
         sub="Here's what's happening across your workspaces."
         action={
           <Button appearance="primary" icon={<AddRegular />} onClick={() => navigate("/solve")}>
@@ -208,7 +211,7 @@ export function Dashboard() {
               return (
                 <div key={j.id} className={s.needsCard}>
                   <div className={s.needsTitle}>{j.title}</div>
-                  <div className={s.needsMeta}>{ws?.name} · {j.created}</div>
+                  <div className={s.needsMeta}>{ws?.name} · {timeAgo(j.createdAt)}</div>
                   <StatusBadge status={j.status} />
                   <Button
                     size="small"
@@ -234,7 +237,7 @@ export function Dashboard() {
           <div className={s.activeGrid}>
             {running.map((j) => {
               const ws = workspaces.find((w) => w.id === j.ws);
-              const pct = Math.round((j.step / 9) * 100);
+              const pct = Math.round((j.step / STEPS.length) * 100);
               return (
                 <Card
                   key={j.id}
@@ -245,13 +248,13 @@ export function Dashboard() {
                   <div className={s.activeTitle}>{j.title}</div>
                   <div className={s.activeMeta}>
                     <span className={s.wsChip}>{ws?.name}</span>
-                    <span style={{ color: tokens.colorNeutralForeground3 }}>{j.created}</span>
+                    <span style={{ color: tokens.colorNeutralForeground3 }}>{timeAgo(j.createdAt)}</span>
                   </div>
                   <div className={s.activeBarWrap}>
                     <div className={s.activeBar} style={{ width: `${pct}%` }} />
                   </div>
                   <div className={s.activeFoot}>
-                    <span className={s.activeStep}>Step {j.step} / 9</span>
+                    <span className={s.activeStep}>Step {j.step} / {STEPS.length}</span>
                     <span className={s.activeOpen}>Open →</span>
                   </div>
                 </Card>

@@ -169,7 +169,7 @@ export function ResourceEstimation() {
     const physicalErrorRate = Math.pow(10, -physicalErrorExp);
     const out = computeEstimate(logicalQubits, physicalErrorRate, logicalErrorRate, codeDistance, magicOverhead, problemSizeN, 100);
     const saved = addResourceEstimate({
-      jobId: jobs[0]?.id ?? 0,
+      jobId: jobs[0]?.id ?? "",
       algorithmName, logicalQubits, logicalErrorRate, physicalErrorRate,
       codeType, codeDistance, problemSizeN, magicStateOverhead: magicOverhead,
       ...out,
